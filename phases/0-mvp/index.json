@@ -24,7 +24,7 @@
       "status": "completed",
       "started_at": "2026-06-29T18:35:15+0900",
       "summary": "0001_init.sql에 profiles/uploads/transactions/insights 테이블, RLS, 신규 가입 트리거, card-statements Storage 정책을 정의함",
-      "completed_at": "2026-06-29T18:37:01+0900"
+      "completed_at": "2026-06-29T18:38:06+0900"
     },
     {
       "step": 3,
