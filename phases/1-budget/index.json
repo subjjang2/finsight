@@ -1,0 +1,11 @@
+{
+  "project": "finsight",
+  "phase": "1-budget",
+  "steps": [
+    { "step": 0, "name": "budget-types", "status": "pending" },
+    { "step": 1, "name": "budget-schema", "status": "pending" },
+    { "step": 2, "name": "budget-api", "status": "pending" },
+    { "step": 3, "name": "budget-analysis", "status": "pending" },
+    { "step": 4, "name": "budget-ui", "status": "pending" }
+  ]
+}
