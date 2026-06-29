@@ -29,7 +29,10 @@
     {
       "step": 3,
       "name": "supabase-clients",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-06-29T18:38:06+0900",
+      "summary": "supabase server/admin 클라 + entitlements 게이팅 로직을 추가함",
+      "completed_at": "2026-06-29T18:39:57+0900"
     },
     {
       "step": 4,
