@@ -14,9 +14,26 @@
   --muted: #9aa0a8;
   --muted-soft: #6b7177;
   --accent: #10b981;
+  --accent-glow: rgba(16,185,129,0.35);
+  --accent-dim: rgba(16,185,129,0.12);
   --up: #34d399;
   --down: #f0716b;
   --error: #ef4444;
+  --line-strong: #33373f;
+  --color-primary: #10b981;
+  --color-primary-active: #0e9e6e;
+  --color-primary-disabled: #22252b;
+  --color-on-primary: #04140d;
+  --color-canvas: #121417;
+  --color-surface-strong: #22252b;
+  --color-surface-dark: #16181c;
+  --color-surface-dark-elevated: #22252b;
+  --color-ink: #f3f5f6;
+  --color-body: #9aa0a8;
+  --color-muted: #9aa0a8;
+  --color-hairline: #33373f;
+  --color-on-dark: #f3f5f6;
+  --color-on-dark-soft: #9aa0a8;
 }
 
 * {
