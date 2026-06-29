@@ -1,25 +1,22 @@
 import Link from "next/link";
 import { signOut } from "../../app/(auth)/login/actions";
+import { FREE_MONTHLY_LIMIT, PRO_FAIR_USE_LIMIT } from "../../types/tier";
 import { Badge } from "../ui";
+import { SidebarNav } from "./SidebarNav";
 
 export type SidebarPlan = "free" | "pro";
 
-type NavItem = {
-  href: string;
-  label: string;
-  icon: "insights" | "upload" | "trend" | "pricing";
-};
+function planMonthlyLimit(plan: SidebarPlan): number {
+  return plan === "pro" ? PRO_FAIR_USE_LIMIT : FREE_MONTHLY_LIMIT;
+}
 
-const NAV_ITEMS: NavItem[] = [
-  { href: "/dashboard", label: "인사이트", icon: "insights" },
-  { href: "/dashboard/upload", label: "업로드", icon: "upload" },
-  { href: "/dashboard/trend", label: "월별 추이", icon: "trend" },
-  { href: "/dashboard/pricing", label: "요금제", icon: "pricing" },
-];
-
-function Logo() {
+function Logo({ onNavigate }: { onNavigate?: () => void }) {
   return (
-    <Link href="/dashboard" className="flex items-center gap-2.5 px-2 pb-5">
+    <Link
+      className="flex items-center gap-2.5 px-2 pb-5"
+      href="/dashboard"
+      onClick={onNavigate}
+    >
       <svg aria-hidden="true" className="h-7 w-7" viewBox="0 0 32 32">
         <rect fill="var(--accent)" height="32" rx="9" width="32" />
         <path
@@ -34,61 +31,6 @@ function Logo() {
       </svg>
       <span className="text-lg font-semibold text-ink">finsight</span>
     </Link>
-  );
-}
-
-function NavIcon({
-  icon,
-  active,
-}: {
-  icon: NavItem["icon"];
-  active: boolean;
-}) {
-  const className = active ? "text-ink" : "text-muted";
-  const common = {
-    "aria-hidden": true,
-    className: `h-[18px] w-[18px] ${className}`,
-    fill: "none",
-    stroke: "currentColor",
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    strokeWidth: 1.5,
-    viewBox: "0 0 24 24",
-  };
-
-  if (icon === "insights") {
-    return (
-      <svg {...common}>
-        <rect height="7" rx="1.5" width="7" x="3" y="3" />
-        <rect height="7" rx="1.5" width="7" x="14" y="3" />
-        <rect height="7" rx="1.5" width="7" x="3" y="14" />
-        <rect height="7" rx="1.5" width="7" x="14" y="14" />
-      </svg>
-    );
-  }
-
-  if (icon === "upload") {
-    return (
-      <svg {...common}>
-        <path d="M12 16V4m-5 5 5-5 5 5" />
-        <path d="M4 18v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1" />
-      </svg>
-    );
-  }
-
-  if (icon === "trend") {
-    return (
-      <svg {...common}>
-        <path d="m3 17 5-5 4 4 8-9" />
-        <path d="M21 7v5M16 7h5" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg {...common}>
-      <path d="M12 3v4m0 10v4M3 12h4m10 0h4M6 6l2.5 2.5m7 7L18 18m0-12-2.5 2.5m-7 7L6 18" />
-    </svg>
   );
 }
 
@@ -112,7 +54,7 @@ function UsageMeter({
             {plan === "pro" ? "Pro" : "Free"}
           </span>
         </div>
-        <Badge>{plan === "pro" ? "월 200건" : "월 5건"}</Badge>
+        <Badge>{`월 ${planMonthlyLimit(plan)}건`}</Badge>
       </div>
       <div className="mb-2 flex items-center justify-between text-xs text-muted">
         <span>이번 달 분석</span>
@@ -131,42 +73,20 @@ function UsageMeter({
 }
 
 export function Sidebar({
-  currentPath = "/dashboard",
   plan = "free",
   used = 0,
-  limit = 5,
+  limit = FREE_MONTHLY_LIMIT,
+  onNavigate,
 }: {
-  currentPath?: string;
   plan?: SidebarPlan;
   used?: number;
   limit?: number;
+  onNavigate?: () => void;
 }) {
   return (
     <aside className="flex min-h-screen w-[232px] shrink-0 flex-col border-r border-line bg-canvas px-4 py-5">
-      <Logo />
-      <nav className="space-y-1">
-        {NAV_ITEMS.map((item) => {
-          const active =
-            item.href === "/dashboard"
-              ? currentPath === item.href
-              : currentPath.startsWith(item.href);
-
-          return (
-            <Link
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                active
-                  ? "bg-surface-2 text-ink"
-                  : "text-muted hover:bg-surface-2 hover:text-ink"
-              }`}
-              href={item.href}
-              key={item.href}
-            >
-              <NavIcon active={active} icon={item.icon} />
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
+      <Logo onNavigate={onNavigate} />
+      <SidebarNav onNavigate={onNavigate} />
       <div className="mt-auto space-y-3">
         <UsageMeter limit={limit} plan={plan} used={used} />
         <form action={signOut}>

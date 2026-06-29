@@ -141,18 +141,33 @@ export default async function TrendPage() {
                     <span className="text-sm font-medium text-ink">{categoryLabel(trend.category)}</span>
                     <span className="text-sm tabular-nums text-muted">{won(latest)}</span>
                   </div>
-                  <div className="grid grid-cols-6 items-end gap-2">
-                    {trend.values.map((value, index) => (
-                      <div className="space-y-2" key={`${trend.category}-${points[index]?.id}`}>
-                        <div className="flex h-16 items-end rounded-lg bg-surface-2">
+                  <div
+                    className="grid items-end gap-2"
+                    style={{
+                      gridTemplateColumns: `repeat(${trend.values.length}, minmax(0, 1fr))`,
+                    }}
+                  >
+                    {trend.values.map((value, index) => {
+                      const month = points[index]?.month ?? "";
+                      const barLabel = `${month} ${categoryLabel(trend.category)} ${won(value)}`;
+
+                      return (
+                        <div className="space-y-2" key={`${trend.category}-${points[index]?.id}`}>
                           <div
-                            className="w-full rounded-lg bg-surface-3"
-                            style={{ height: `${Math.max(4, (value / max) * 100)}%` }}
-                          />
+                            aria-label={barLabel}
+                            className="flex h-16 items-end rounded-lg bg-surface-2"
+                            role="img"
+                            title={barLabel}
+                          >
+                            <div
+                              className="w-full rounded-lg bg-surface-3"
+                              style={{ height: `${Math.max(4, (value / max) * 100)}%` }}
+                            />
+                          </div>
+                          <p className="text-center text-xs tabular-nums text-muted-soft">{month.slice(5)}</p>
                         </div>
-                        <p className="text-center text-xs tabular-nums text-muted-soft">{points[index]?.month.slice(5)}</p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               );

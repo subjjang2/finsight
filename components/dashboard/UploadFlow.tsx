@@ -25,6 +25,37 @@ const FIELD_OPTIONS: Array<{ value: MappingField; label: string }> = [
 
 const REQUIRED_FIELDS: MappingField[] = ["date", "merchant", "amount"];
 
+// Mirrors the server-side 5MB cap so the user gets immediate feedback.
+export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+
+const ALLOWED_CSV_TYPES = new Set([
+  "",
+  "text/csv",
+  "application/csv",
+  "application/vnd.ms-excel",
+]);
+
+export type CsvValidation = { ok: true } | { ok: false; message: string };
+
+export function validateCsvFile(file: File): CsvValidation {
+  const isCsvExtension = file.name.toLowerCase().endsWith(".csv");
+  const isCsvType = ALLOWED_CSV_TYPES.has(file.type);
+
+  if (!isCsvExtension || !isCsvType) {
+    return { ok: false, message: "CSV 파일(.csv)만 업로드할 수 있습니다." };
+  }
+
+  if (file.size === 0) {
+    return { ok: false, message: "빈 파일입니다. 거래 내역이 담긴 CSV를 선택하세요." };
+  }
+
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return { ok: false, message: "파일이 5MB를 초과했습니다. 더 작은 CSV로 시도하세요." };
+  }
+
+  return { ok: true };
+}
+
 export function UploadFlow({
   used,
   limit,
@@ -141,9 +172,19 @@ export function UploadFlow({
             onChange={(event) => {
               const nextFile = event.target.files?.[0];
 
-              if (nextFile) {
-                void uploadFile(nextFile);
+              if (!nextFile) {
+                return;
               }
+
+              const validation = validateCsvFile(nextFile);
+
+              if (!validation.ok) {
+                setFile(nextFile);
+                setError(validation.message);
+                return;
+              }
+
+              void uploadFile(nextFile);
             }}
             ref={inputRef}
             type="file"

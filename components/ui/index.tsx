@@ -35,7 +35,7 @@ export function Button({
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant }) {
   const variants: Record<Variant, string> = {
     primary: "bg-white text-black hover:bg-neutral-200",
-    accent: "bg-accent text-black hover:bg-emerald-400",
+    accent: "bg-accent text-black hover:bg-accent/90",
     text: "bg-transparent px-0 text-muted hover:text-neutral-300",
   };
 
@@ -59,7 +59,7 @@ export function Input({
   return (
     <input
       className={cx(
-        "w-full rounded-lg border border-line bg-surface-2 px-4 py-3 text-sm text-ink outline-none transition-colors placeholder:text-muted-soft focus:border-line focus:bg-surface",
+        "w-full rounded-lg border border-line bg-surface-2 px-4 py-3 text-sm text-ink outline-none transition-colors placeholder:text-muted-soft focus:border-accent focus:bg-surface focus-visible:ring-2 focus-visible:ring-accent",
         className,
       )}
       {...props}
@@ -76,7 +76,7 @@ export function Select({
     <div className="relative">
       <select
         className={cx(
-          "w-full appearance-none rounded-lg border border-line bg-surface-2 px-4 py-3 pr-10 text-sm text-ink outline-none transition-colors focus:bg-surface",
+          "w-full appearance-none rounded-lg border border-line bg-surface-2 px-4 py-3 pr-10 text-sm text-ink outline-none transition-colors focus:border-accent focus:bg-surface focus-visible:ring-2 focus-visible:ring-accent",
           className,
         )}
         {...props}

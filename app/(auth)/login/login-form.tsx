@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
+import { Button, Input } from "../../../components/ui";
 import type { AuthActionState, AuthMode } from "./actions";
 import { authenticate } from "./actions";
 
@@ -38,54 +39,58 @@ export function LoginForm({ next }: LoginFormProps) {
       <input type="hidden" name="mode" value={mode} />
       <input type="hidden" name="next" value={next} />
 
-      <div className="grid grid-cols-2 rounded-lg border border-line bg-surface-2 p-1">
+      <div
+        aria-label="로그인 또는 회원가입 선택"
+        className="grid grid-cols-2 rounded-lg border border-line bg-surface-2 p-1"
+        role="tablist"
+      >
         <button
-          type="button"
-          onClick={() => setMode("login")}
-          className={`rounded-md px-3 py-2 text-sm font-medium ${
+          aria-selected={mode === "login"}
+          className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
             mode === "login"
               ? "bg-white text-black"
               : "text-muted hover:text-ink"
           }`}
+          onClick={() => setMode("login")}
+          role="tab"
+          type="button"
         >
           로그인
         </button>
         <button
-          type="button"
-          onClick={() => setMode("signup")}
-          className={`rounded-md px-3 py-2 text-sm font-medium ${
+          aria-selected={mode === "signup"}
+          className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
             mode === "signup"
               ? "bg-white text-black"
               : "text-muted hover:text-ink"
           }`}
+          onClick={() => setMode("signup")}
+          role="tab"
+          type="button"
         >
           회원가입
         </button>
       </div>
 
       <div className="space-y-2">
-        <label htmlFor="email" className="text-sm font-medium text-neutral-400">
+        <label htmlFor="email" className="text-sm font-medium text-muted">
           이메일
         </label>
-        <input
+        <Input
           id="email"
           name="email"
           type="email"
           autoComplete="email"
           required
           placeholder="you@example.com"
-          className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-3 text-sm text-ink outline-none placeholder:text-muted-soft focus:border-emerald-500"
         />
       </div>
 
       <div className="space-y-2">
-        <label
-          htmlFor="password"
-          className="text-sm font-medium text-neutral-400"
-        >
+        <label htmlFor="password" className="text-sm font-medium text-muted">
           비밀번호
         </label>
-        <input
+        <Input
           id="password"
           name="password"
           type="password"
@@ -93,7 +98,6 @@ export function LoginForm({ next }: LoginFormProps) {
           required
           minLength={6}
           placeholder="비밀번호"
-          className="w-full rounded-lg border border-neutral-800 bg-neutral-900 px-4 py-3 text-sm text-ink outline-none placeholder:text-muted-soft focus:border-emerald-500"
         />
       </div>
 
@@ -101,26 +105,22 @@ export function LoginForm({ next }: LoginFormProps) {
         aria-live="polite"
         className={`min-h-5 text-sm ${
           state.status === "error"
-            ? "text-red-400"
+            ? "text-error"
             : state.status === "success"
-              ? "text-emerald-400"
+              ? "text-accent"
               : "text-muted"
         }`}
       >
         {statusText}
       </p>
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="w-full rounded-lg bg-white px-4 py-2 text-sm font-medium text-black hover:bg-neutral-200 disabled:cursor-not-allowed disabled:bg-neutral-700 disabled:text-neutral-400"
-      >
+      <Button className="w-full" disabled={isPending} type="submit">
         {isPending
           ? "처리 중"
           : mode === "signup"
             ? "계정 만들기"
             : "로그인"}
-      </button>
+      </Button>
 
       <p className="text-sm leading-relaxed text-muted">
         {activeMode === "signup"

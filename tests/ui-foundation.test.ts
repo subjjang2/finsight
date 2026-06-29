@@ -36,6 +36,33 @@ describe("ui foundation primitives", () => {
     expect(select).toContain("bg-surface-2");
   });
 
+  it("gives form fields a visible accent focus indicator (WCAG 2.4.7)", () => {
+    const input = renderToStaticMarkup(
+      React.createElement(Input, { "aria-label": "검색" }),
+    );
+    const select = renderToStaticMarkup(
+      React.createElement(
+        Select,
+        { "aria-label": "월" },
+        React.createElement("option", null, "2026-06"),
+      ),
+    );
+
+    expect(input).toContain("focus:border-accent");
+    expect(input).toContain("focus-visible:ring-accent");
+    expect(select).toContain("focus:border-accent");
+    expect(select).toContain("focus-visible:ring-accent");
+  });
+
+  it("keeps the accent button hover on the design token, not a literal palette", () => {
+    const accent = renderToStaticMarkup(
+      React.createElement(Button, { variant: "accent" }, "분석"),
+    );
+
+    expect(accent).toContain("bg-accent");
+    expect(accent).not.toContain("emerald-400");
+  });
+
   it("renders button variants without banned rounded-2xl styling", () => {
     const primary = renderToStaticMarkup(
       React.createElement(Button, null, "저장"),
