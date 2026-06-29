@@ -48,7 +48,7 @@
       "status": "completed",
       "started_at": "2026-06-29T18:44:05+0900",
       "summary": "services/claude mapColumns/classify + Anthropic SDK 모킹 테스트 추가",
-      "completed_at": "2026-06-29T18:47:52+0900"
+      "completed_at": "2026-06-29T18:50:02+0900"
     },
     {
       "step": 6,
