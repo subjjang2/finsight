@@ -77,7 +77,10 @@
     {
       "step": 9,
       "name": "dashboard-screens",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-06-29T19:08:07+0900",
+      "summary": "upload/mapping/analyzing/insights/trend 대시보드 화면을 step 7 API와 user-scoped Supabase 조회에 연결함",
+      "completed_at": "2026-06-29T19:14:24+0900"
     },
     {
       "step": 10,
