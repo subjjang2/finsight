@@ -18,7 +18,9 @@ const columnMappingSchema = {
       source: { type: "string" },
       sample: { type: "string" },
       field: { type: "string", enum: MAPPING_FIELDS },
-      confidence: { type: "number", minimum: 0, maximum: 1 },
+      // The structured-output API rejects minimum/maximum on number types;
+      // confidence is clamped to [0,1] in mapColumns() instead.
+      confidence: { type: "number" },
     },
   },
 } as const;
