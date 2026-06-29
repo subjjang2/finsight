@@ -15,7 +15,15 @@ finsight UI를 만들거나 고칠 때는 **코드를 쓰기 전에** 아래 정
 
 ## 1. 정본 (반드시 준수)
 `docs/UI_GUIDE.md` — 색상·타이포·컴포넌트·레이아웃·상태·애니메이션 규칙과 AI-슬롭 안티패턴.
-이 문서가 디자인 결정의 단일 진실 소스다. 충돌 시 항상 이 규칙이 우선.
+이 문서가 **시각 디자인** 결정의 단일 진실 소스다. 충돌 시 항상 이 규칙이 우선.
+
+`docs/UX_GUIDE.md` — 유입·온보딩·단계 전환(퍼널) 정본. 화면 흐름, 단계별 전환 설계,
+빈/에러 상태에서의 다음 행동, Pro 전환 시점을 정의한다. **화면을 새로 만들거나
+사용자 흐름을 바꿀 때 반드시 참조**한다. (시각 규칙은 UI_GUIDE, 흐름 규칙은 UX_GUIDE)
+
+> **유지보수**: 이 스킬은 위 정본 문서(`UI_GUIDE`·`UX_GUIDE`·`COMPONENTS.md`)를 *가리키기만* 한다.
+> 토큰·규칙·흐름의 실제 값은 문서에만 둔다. 문서를 고쳤는데 이 스킬의 요약/참조가 어긋나면
+> 같은 커밋에서 함께 갱신한다(둘을 다른 커밋으로 나누지 말 것 — drift의 원인).
 
 핵심 요약:
 - 다크모드 고정. 무채색(neutral) + 포인트 1색 **emerald(#10b981)**. 도구형 대시보드, 마케팅 톤 금지.
@@ -28,6 +36,13 @@ finsight UI를 만들거나 고칠 때는 **코드를 쓰기 전에** 아래 정
 charcoal 다크 + emerald, Pretendard 한글 폰트. 토큰 변수명/값을 그대로 참고:
 `--accent #10b981`, `--canvas #0a0b0d`, `--surface #121417`, `--surface-2/3`,
 `--line`, `--ink #f3f5f6`, `--muted`, `--up #34d399`, `--down #f0716b`.
+
+## 2b. 컴포넌트 카탈로그 (구현 시 생성)
+`components/`에 재사용 primitive(Button, Card, Panel, Stat, Donut 등)를 처음 만들 때,
+`docs/COMPONENTS.md` 카탈로그를 **코드와 동시에** 작성·갱신한다.
+각 컴포넌트의 props·변형(variant)·상태·사용 예를 정의하는 단일 진실 소스로 둔다.
+(원칙·토큰=UI_GUIDE, 흐름=UX_GUIDE, **조립 단위=COMPONENTS.md**.)
+아직 컴포넌트가 코드로 없으면 만들지 않는다 — 코드보다 앞서 쓰면 어긋난다.
 
 ## 3. 구현 예시 (그대로 패턴 차용)
 - `docs/prototype/js/ui.jsx` — 공용 primitive: `Logo`, `Sidebar`, `PageHeader`, `Panel`,
