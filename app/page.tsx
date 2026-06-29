@@ -1,0 +1,15 @@
+export default function Home() {
+  return (
+    <main className="min-h-screen bg-canvas px-6 py-12 text-ink">
+      <section className="mx-auto max-w-5xl space-y-6">
+        <p className="text-sm font-medium text-accent">finsight</p>
+        <div className="rounded-lg border border-line bg-surface p-6">
+          <h1 className="text-4xl font-semibold text-ink">지출 분석 준비 중</h1>
+          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted">
+            카드 명세서 CSV 업로드와 분석 흐름을 구성하기 위한 임시 화면입니다.
+          </p>
+        </div>
+      </section>
+    </main>
+  );
+}

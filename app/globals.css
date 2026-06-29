@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: "Pretendard", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  --canvas: #0a0b0d;
+  --surface: #121417;
+  --surface-2: #16181c;
+  --surface-3: #22252b;
+  --line: #23262d;
+  --ink: #f3f5f6;
+  --muted: #9aa0a8;
+  --muted-soft: #6b7177;
+  --accent: #10b981;
+  --up: #34d399;
+  --down: #f0716b;
+  --error: #ef4444;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--canvas);
+}
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  word-break: keep-all;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
