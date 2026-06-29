@@ -11,6 +11,7 @@ const config: Config = {
         "surface-2": "var(--surface-2)",
         "surface-3": "var(--surface-3)",
         line: "var(--line)",
+        "line-strong": "var(--line-strong)",
         ink: "var(--ink)",
         muted: "var(--muted)",
         "muted-soft": "var(--muted-soft)",

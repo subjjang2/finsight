@@ -1,4 +1,4 @@
-// S1: 랜딩 페이지 렌더 + "로그인으로 이동" 이동 (인증 불필요)
+// S1: 랜딩 페이지 렌더 + "시작하기" CTA → /login (인증 불필요)
 // 실행: dev-browser --headless --timeout 45 run tests/e2e/s1_landing.js
 const page = await browser.getPage("e2e");
 await page.goto("http://localhost:3000/", { waitUntil: "domcontentloaded" });
@@ -17,7 +17,7 @@ console.log(
       heading,
       ctaCount,
       ctaHref: href,
-      pass: ctaCount > 0 && href === "/login" && heading.includes("카드 명세서를 올리면 지출이 정리됩니다"),
+      pass: ctaCount > 0 && href === "/login" && heading.includes("지출 인사이트"),
     },
     null,
     2,
