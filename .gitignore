@@ -10,3 +10,8 @@ phases/**/step*-output.json
 
 # claude session-local logs
 .claude/audit.jsonl
+
+# python
+__pycache__/
+.pytest_cache/
+*.py[cod]
