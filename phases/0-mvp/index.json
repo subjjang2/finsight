@@ -7,7 +7,8 @@
       "name": "project-setup",
       "status": "completed",
       "started_at": "2026-06-29T18:16:53+0900",
-      "summary": "Next.js 15 App Router 기반, Tailwind 다크 토큰, Vitest smoke 테스트, health API, 환경변수 예시를 구성함"
+      "summary": "Next.js 15 App Router 기반, Tailwind 다크 토큰, Vitest smoke 테스트, health API, 환경변수 예시를 구성함",
+      "completed_at": "2026-06-29T18:27:16+0900"
     },
     {
       "step": 1,

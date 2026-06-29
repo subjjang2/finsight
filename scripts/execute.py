@@ -22,6 +22,12 @@ from typing import Optional
 
 ROOT = Path(__file__).resolve().parent.parent
 
+# Windows 콘솔 기본 인코딩(cp949)에서 '—'·이모지 등 비-cp949 문자를 print 하면
+# UnicodeEncodeError로 죽는다 → stdout/stderr를 utf-8(errors=replace)로 강제.
+for _stream in (sys.stdout, sys.stderr):
+    with contextlib.suppress(Exception):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+
 
 @contextlib.contextmanager
 def progress_indicator(label: str):
@@ -109,7 +115,12 @@ class StepExecutor:
 
     def _run_git(self, *args) -> subprocess.CompletedProcess:
         cmd = ["git"] + list(args)
-        return subprocess.run(cmd, cwd=self._root, capture_output=True, text=True)
+        # encoding 미지정 시 Windows에서 git 출력(커밋 메시지의 '—' 등)을 cp949로
+        # 디코딩하다 reader thread가 UnicodeDecodeError로 죽는다 → utf-8 고정.
+        return subprocess.run(
+            cmd, cwd=self._root, capture_output=True, text=True,
+            encoding="utf-8", errors="replace",
+        )
 
     def _checkout_branch(self):
         branch = f"feat-{self._phase_name}"
@@ -262,7 +273,7 @@ class StepExecutor:
                 "-",                                           # 프롬프트를 stdin에서 읽음
             ],
             cwd=self._root, capture_output=True, text=True, timeout=1800,
-            input=prompt, encoding="utf-8",
+            input=prompt, encoding="utf-8", errors="replace",
         )
 
         if result.returncode != 0:
