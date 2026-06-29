@@ -3,9 +3,9 @@
 const page = await browser.getPage("e2e");
 await page.goto("http://localhost:3000/", { waitUntil: "domcontentloaded" });
 const heading = (await page.textContent("h1").catch(() => null)) ?? "(no h1)";
-const ctaCount = await page.getByText("로그인으로 이동").count();
+const ctaCount = await page.getByText("시작하기").count();
 const href = await page
-  .locator('a:has-text("로그인으로 이동")')
+  .locator('a:has-text("시작하기")')
   .first()
   .getAttribute("href")
   .catch(() => null);
@@ -17,7 +17,7 @@ console.log(
       heading,
       ctaCount,
       ctaHref: href,
-      pass: ctaCount > 0 && href === "/login" && heading.includes("지출 분석 준비 중"),
+      pass: ctaCount > 0 && href === "/login" && heading.includes("카드 명세서를 올리면 지출이 정리됩니다"),
     },
     null,
     2,

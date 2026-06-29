@@ -4,7 +4,7 @@ const page = await browser.getPage("e2e");
 await page.goto("http://localhost:3000/login", { waitUntil: "domcontentloaded" });
 
 const submitBefore = (await page.locator('button[type="submit"]').textContent()).trim();
-await page.getByRole("button", { name: "회원가입", exact: true }).click({ noWaitAfter: true });
+await page.getByRole("tab", { name: "회원가입", exact: true }).click({ noWaitAfter: true });
 await page.waitForTimeout(300);
 const submitAfter = (await page.locator('button[type="submit"]').textContent()).trim();
 await saveScreenshot(await page.screenshot(), "s5_signup_tab.png");
