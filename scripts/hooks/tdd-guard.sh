@@ -54,11 +54,44 @@ case "$FILE_PATH" in
     ;;
 esac
 
-# Next.js 프레임워크 파일은 허용 (layout, page, loading, error, not-found, route handler, global styles)
-# route 핸들러는 page/layout과 동일하게 통합 테스트 영역으로 보고 단위 TDD 대상에서 제외한다.
-# (핵심 비즈니스 로직은 lib/services 헬퍼로 추출해 단위 테스트로 커버한다.)
+# route 핸들러: 통합 테스트 강제. page/layout과 달리 route.ts에는 외부 API 로직
+# (Claude 호출, Polar webhook, CSV 처리 등 CLAUDE.md CRITICAL 대상)이 들어가므로
+# 단순 면제하지 않는다. 통과 조건:
+#   (1) 같은 폴더에 route.test.ts(x) / route.spec.ts(x), 또는
+#   (2) tests/ 에서 '<상위폴더>/route' 형태로 이 route를 import 하는 테스트가 존재.
+# 둘 다 없으면 차단. 핵심 로직을 테스트된 lib/services로 추출하는 것도 통과 경로다
+# (그 lib 모듈에는 별도 테스트가 붙으므로). <상위폴더>로 매칭해 route 간 오탐을 막는다.
 case "$FILE_PATH" in
-  */layout.tsx|*/layout.ts|*/page.tsx|*/page.ts|*/loading.tsx|*/error.tsx|*/not-found.tsx|*/route.ts|*/route.tsx|*/globals.css)
+  */route.ts|*/route.tsx)
+    DIR=$(dirname "$FILE_PATH")
+    SEG="$(basename "$DIR")/route"   # 예: webhook/route
+    for EXT in ts tsx; do
+      if [ -f "${DIR}/route.test.${EXT}" ] || [ -f "${DIR}/route.spec.${EXT}" ]; then
+        exit 0
+      fi
+    done
+    PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
+    if [ -d "${PROJECT_ROOT}/tests" ] && \
+       grep -rqE "from [\"'][^\"']*${SEG}[\"']" "${PROJECT_ROOT}/tests" 2>/dev/null; then
+      exit 0
+    fi
+    cat << EOF
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "deny",
+    "permissionDecisionReason": "TDD GUARD: route 핸들러 '${SEG}'에 대한 테스트가 없습니다. tests/에서 이 route의 핸들러(GET/POST 등)를 import하는 통합 테스트를 먼저 작성하거나, 핵심 로직을 테스트된 lib/services 모듈로 추출하세요."
+  }
+}
+EOF
+    exit 0
+    ;;
+esac
+
+# Next.js 프레임워크 파일은 허용 (layout, page, loading, error, not-found, global styles)
+# route.ts는 위 전용 케이스에서 통합 테스트를 강제하므로 여기서 제외한다.
+case "$FILE_PATH" in
+  */layout.tsx|*/layout.ts|*/page.tsx|*/page.ts|*/loading.tsx|*/error.tsx|*/not-found.tsx|*/globals.css)
     exit 0
     ;;
 esac
