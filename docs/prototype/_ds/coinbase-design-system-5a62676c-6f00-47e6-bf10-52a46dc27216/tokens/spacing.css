@@ -1,0 +1,19 @@
+/* ──────────────────────────────────────────────────────────────
+   Spacing — 4px base unit. 96px section rhythm.
+   ────────────────────────────────────────────────────────────── */
+
+:root {
+  --space-xxs:      4px;
+  --space-xs:       8px;
+  --space-sm:       12px;
+  --space-base:     16px;
+  --space-md:       20px;
+  --space-lg:       24px;
+  --space-xl:       32px;
+  --space-xxl:      48px;
+  --space-section:  96px;   /* every major editorial band */
+
+  /* Layout */
+  --container-max:  1200px; /* centered max content width */
+  --card-padding:   32px;   /* feature cards & product-UI mockups */
+}

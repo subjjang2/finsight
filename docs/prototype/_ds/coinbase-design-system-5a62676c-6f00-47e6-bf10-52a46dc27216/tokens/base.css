@@ -1,0 +1,22 @@
+/* ──────────────────────────────────────────────────────────────
+   Base — minimal resets and document defaults.
+   ────────────────────────────────────────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--type-body-md-size);
+  line-height: var(--type-body-md-lh);
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a { color: var(--color-primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Every numerical value renders in mono with tabular figures */
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }

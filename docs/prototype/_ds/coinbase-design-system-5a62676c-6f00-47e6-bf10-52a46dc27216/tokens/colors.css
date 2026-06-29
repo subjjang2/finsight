@@ -1,0 +1,38 @@
+/* ──────────────────────────────────────────────────────────────
+   Colors — Coinbase brand palette
+   One brand voltage: Coinbase Blue (#0052ff), used scarcely.
+   Trading green/red are semantic TEXT colors only — never fills.
+   ────────────────────────────────────────────────────────────── */
+
+:root {
+  /* ── Brand & Accent ─────────────────────────────── */
+  --color-primary:           #0052ff;  /* Coinbase Blue — the single action color */
+  --color-primary-active:    #003ecc;  /* press-state darken */
+  --color-primary-disabled:  #a8b8cc;  /* faded blue tint for disabled CTAs */
+  --color-accent-yellow:     #f4b000;  /* illustrative-only — Bitcoin/asset glyphs */
+
+  /* ── Surface ────────────────────────────────────── */
+  --color-canvas:                #ffffff;  /* default page floor */
+  --color-surface-soft:          #f7f7f7;  /* alternating band surface */
+  --color-surface-strong:        #eef0f3;  /* secondary buttons, search pills, icon plates */
+  --color-surface-dark:          #0a0b0d;  /* dark heroes, CTA bands */
+  --color-surface-dark-elevated: #16181c;  /* floating product-UI cards on dark */
+
+  /* ── Hairlines ──────────────────────────────────── */
+  --color-hairline:       #dee1e6;  /* default 1px divider on white */
+  --color-hairline-soft:  #eef0f3;  /* lighter divider */
+
+  /* ── Text ───────────────────────────────────────── */
+  --color-ink:           #0a0b0d;  /* display headings, primary nav, emphasis */
+  --color-body:          #5b616e;  /* default running text — cool gray */
+  --color-body-strong:   #0a0b0d;  /* stronger emphasis */
+  --color-muted:         #7c828a;  /* sub-titles, breadcrumbs, footer secondary */
+  --color-muted-soft:    #a8acb3;  /* disabled link text */
+  --color-on-primary:    #ffffff;  /* text on Coinbase Blue */
+  --color-on-dark:       #ffffff;  /* text on dark heroes */
+  --color-on-dark-soft:  #a8acb3;  /* muted off-white on dark */
+
+  /* ── Trading Semantics (text color only) ────────── */
+  --color-semantic-up:    #05b169;  /* price up — green */
+  --color-semantic-down:  #cf202f;  /* price down — red */
+}

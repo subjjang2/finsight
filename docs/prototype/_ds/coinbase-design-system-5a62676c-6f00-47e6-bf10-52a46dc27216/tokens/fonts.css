@@ -1,0 +1,20 @@
+/* ──────────────────────────────────────────────────────────────
+   Fonts — Coinbase typefaces are licensed.
+   Documented substitutes (loaded from Google Fonts):
+     CoinbaseDisplay  → Inter (weight 400, tight tracking)
+     CoinbaseSans     → Inter (weight 400/500/600/700)
+     CoinbaseMono     → JetBrains Mono (weight 500)
+   Replace the @import below with self-hosted @font-face rules
+   pointing at licensed Coinbase font binaries when available.
+   ────────────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* Display headlines — CoinbaseDisplay substitute */
+  --font-display: 'Inter', -apple-system, system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  /* Body, nav, captions, buttons — CoinbaseSans substitute */
+  --font-sans: 'Inter', -apple-system, system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  /* Tabular numerics — CoinbaseMono substitute */
+  --font-mono: 'JetBrains Mono', 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
