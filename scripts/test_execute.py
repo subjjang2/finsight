@@ -429,17 +429,30 @@ class TestInvokeCodex:
         step = {"step": 2, "name": "ui"}
         preamble = "PREAMBLE\n"
 
-        with patch("subprocess.run", return_value=mock_result) as mock_run:
+        with patch("subprocess.run", return_value=mock_result) as mock_run, \
+                patch("shutil.which", return_value="codex"):
             output = executor._invoke_codex(step, preamble)
 
         cmd = mock_run.call_args[0][0]
-        assert cmd[0] == "codex"
+        assert any("codex" in str(part).lower() for part in cmd)
         assert "exec" in cmd
         assert "--dangerously-bypass-approvals-and-sandbox" in cmd
         assert "--dangerously-bypass-hook-trust" in cmd
         assert "--json" in cmd
-        assert "PREAMBLE" in cmd[-1]
-        assert "UI를 구현하세요" in cmd[-1]
+        # 프롬프트는 argv가 아니라 stdin(`-`)으로 전달된다
+        assert cmd[-1] == "-"
+        stdin = mock_run.call_args[1]["input"]
+        assert "PREAMBLE" in stdin
+        assert "UI를 구현하세요" in stdin
+
+    def test_codex_argv_wraps_cmd_shim_on_windows(self, executor):
+        # Windows에서 codex.cmd 셔임은 cmd /c 로 감싸야 spawn된다
+        with patch("os.name", "nt"), \
+                patch("shutil.which", return_value=r"C:\\npm\\codex.CMD"):
+            argv = executor._codex_argv()
+        assert argv[0] == "cmd"
+        assert argv[1] == "/c"
+        assert argv[2].lower().endswith("codex.cmd")
 
     def test_saves_output_json(self, executor):
         mock_result = MagicMock(returncode=0, stdout='{"ok": true}', stderr="")

@@ -10,6 +10,7 @@ import argparse
 import contextlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import threading
@@ -226,6 +227,21 @@ class StepExecutor:
 
     # --- Codex 호출 ---
 
+    @staticmethod
+    def _codex_argv() -> list:
+        """codex 실행 파일을 OS에 맞게 해석한다.
+
+        Windows에서 npm 전역 셔임은 `codex.cmd`라 CreateProcess가 직접 spawn하지
+        못한다(WinError 2) → `cmd /c <full path>`로 감싼다.
+        """
+        exe = shutil.which("codex")
+        if not exe:
+            print("  ERROR: codex CLI를 PATH에서 찾을 수 없습니다.")
+            sys.exit(1)
+        if os.name == "nt" and exe.lower().endswith((".cmd", ".bat")):
+            return ["cmd", "/c", exe]
+        return [exe]
+
     def _invoke_codex(self, step: dict, preamble: str) -> dict:
         step_num, step_name = step["step"], step["name"]
         step_file = self._phase_dir / f"step{step_num}.md"
@@ -235,15 +251,18 @@ class StepExecutor:
             sys.exit(1)
 
         prompt = preamble + step_file.read_text(encoding="utf-8")
+        # 프롬프트는 stdin으로 전달한다(`-`). 이유: 가드레일+docs 전체라 Windows
+        # 명령줄 32767자 한도를 넘고, 표의 `|`·`>`·백틱 등이 셸에서 해석되는 걸 피한다.
         result = subprocess.run(
-            [
-                "codex", "exec",
+            self._codex_argv() + [
+                "exec",
                 "--dangerously-bypass-approvals-and-sandbox",  # = claude --dangerously-skip-permissions
                 "--dangerously-bypass-hook-trust",             # .codex/hooks.json 가드레일을 무인 실행에서 적용
                 "--json",                                      # = claude --output-format json (JSONL 이벤트)
-                prompt,
+                "-",                                           # 프롬프트를 stdin에서 읽음
             ],
             cwd=self._root, capture_output=True, text=True, timeout=1800,
+            input=prompt, encoding="utf-8",
         )
 
         if result.returncode != 0:
