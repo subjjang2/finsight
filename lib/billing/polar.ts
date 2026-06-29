@@ -2,14 +2,37 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import type { Tier } from "../../types/tier";
 
 const ACTIVE_EVENTS = new Set(["subscription.active", "subscription.uncanceled"]);
-const FREE_EVENTS = new Set(["subscription.canceled", "subscription.revoked"]);
+// Demotion happens ONLY on a confirmed loss of access (`subscription.revoked`).
+// `subscription.canceled` is intentionally NOT here: Polar emits it when the user
+// schedules a cancel-at-period-end, while access (and the paid period) must remain
+// until it is actually revoked. Demoting on canceled would strip a still-paid period
+// and create Merchant-of-Record refund disputes.
+const FREE_EVENTS = new Set(["subscription.revoked"]);
+// `subscription.canceled` = scheduled cancellation only -> never changes tier here.
+const SCHEDULED_CANCEL_EVENTS = new Set(["subscription.canceled"]);
+
 const ACTIVE_STATUSES = new Set(["active", "trialing"]);
+// Confirmed-failure statuses: access is gone -> demote to free.
 const FREE_STATUSES = new Set(["canceled", "revoked", "unpaid", "incomplete_expired"]);
+// Dunning / pending statuses: payment retry in progress. Policy: KEEP pro during the
+// dunning grace period and only demote once the failure is confirmed (`unpaid`/`revoked`).
+// These intentionally map to "no tier change" (tierFromEvent returns null).
+const DUNNING_STATUSES = new Set(["past_due", "incomplete"]);
+
 const DEFAULT_TOLERANCE_SECONDS = 5 * 60;
+// Future timestamps should barely be tolerated (only clock skew). A replayed/forged
+// far-future timestamp must be rejected, so the allowance forward is much smaller than
+// the backward window.
+const FUTURE_TOLERANCE_SECONDS = 60;
 
 export type PolarTierUpdate = {
   userId: string;
   tier: Tier;
+};
+
+export type TierMappingOptions = {
+  // The Polar product id that grants pro. Defaults to POLAR_PRO_PRODUCT_ID.
+  proProductId?: string | null;
 };
 
 type PolarLikeEvent = {
@@ -17,7 +40,10 @@ type PolarLikeEvent = {
   data?: unknown;
 };
 
-export function getPolarTierUpdate(event: unknown): PolarTierUpdate | null {
+export function getPolarTierUpdate(
+  event: unknown,
+  options: TierMappingOptions = {},
+): PolarTierUpdate | null {
   if (!event || typeof event !== "object") {
     return null;
   }
@@ -28,7 +54,9 @@ export function getPolarTierUpdate(event: unknown): PolarTierUpdate | null {
     return null;
   }
 
-  const tier = tierFromEvent(type, data as Record<string, unknown>);
+  const proProductId =
+    options.proProductId ?? process.env.POLAR_PRO_PRODUCT_ID ?? null;
+  const tier = tierFromEvent(type, data as Record<string, unknown>, proProductId);
   const userId = userIdFromPolarData(data as Record<string, unknown>);
 
   if (!tier || !userId) {
@@ -36,6 +64,47 @@ export function getPolarTierUpdate(event: unknown): PolarTierUpdate | null {
   }
 
   return { userId, tier };
+}
+
+// Pulls the subscription's monotonic ordering key from a webhook event so that
+// out-of-order / re-delivered events can be ignored. Prefers `modified_at`, then
+// `current_period_end`.
+export function getEventModifiedAt(event: unknown): string | null {
+  if (!event || typeof event !== "object") {
+    return null;
+  }
+
+  const { data } = event as PolarLikeEvent;
+
+  if (!data || typeof data !== "object") {
+    return null;
+  }
+
+  const record = data as Record<string, unknown>;
+
+  return stringValue(record.modified_at) ?? stringValue(record.current_period_end);
+}
+
+// Monotonic guard: returns true when an incoming event should be applied over what
+// is already stored. Unknown/uncomparable timestamps default to "apply" so a missing
+// field never silently drops a legitimate update; only a strictly older timestamp is
+// rejected.
+export function isNewerEvent(
+  incomingModifiedAt: string | null,
+  storedModifiedAt: string | null,
+): boolean {
+  if (!storedModifiedAt || !incomingModifiedAt) {
+    return true;
+  }
+
+  const incoming = Date.parse(incomingModifiedAt);
+  const stored = Date.parse(storedModifiedAt);
+
+  if (!Number.isFinite(incoming) || !Number.isFinite(stored)) {
+    return true;
+  }
+
+  return incoming >= stored;
 }
 
 export function verifyPolarSignature({
@@ -59,7 +128,9 @@ export function verifyPolarSignature({
   const effectiveTimestamp = timestamp ?? parsed.timestamp;
   const effectiveWebhookId = webhookId ?? parsed.webhookId;
 
-  if (!effectiveTimestamp || parsed.signatures.length === 0) {
+  // Standard Webhooks: the webhook id is part of the signed content and must be present.
+  // Reject rather than falling back to a id-less signing base.
+  if (!effectiveWebhookId || !effectiveTimestamp || parsed.signatures.length === 0) {
     return false;
   }
 
@@ -69,15 +140,15 @@ export function verifyPolarSignature({
     return false;
   }
 
-  const age = Math.abs(Math.floor(now.getTime() / 1000) - timestampNumber);
+  // Positive delta = the event is in the past, negative = in the future.
+  const delta = Math.floor(now.getTime() / 1000) - timestampNumber;
 
-  if (age > toleranceSeconds) {
+  // Reject events that are too old (replay) or further in the future than clock skew.
+  if (delta > toleranceSeconds || delta < -FUTURE_TOLERANCE_SECONDS) {
     return false;
   }
 
-  const signedPayload = effectiveWebhookId
-    ? `${effectiveWebhookId}.${effectiveTimestamp}.${payload}`
-    : `${effectiveTimestamp}.${payload}`;
+  const signedPayload = `${effectiveWebhookId}.${effectiveTimestamp}.${payload}`;
   const expected = createHmac("sha256", normalizeWebhookSecret(secret))
     .update(signedPayload)
     .digest();
@@ -120,28 +191,69 @@ export function signPolarWebhookPayload({
   return createHmac("sha256", normalizeWebhookSecret(secret)).update(signedPayload).digest("base64");
 }
 
-function tierFromEvent(type: string, data: Record<string, unknown>): Tier | null {
-  if (ACTIVE_EVENTS.has(type)) {
-    return "pro";
+function tierFromEvent(
+  type: string,
+  data: Record<string, unknown>,
+  proProductId: string | null,
+): Tier | null {
+  // Scheduled cancellation: keep current tier (paid period still valid).
+  if (SCHEDULED_CANCEL_EVENTS.has(type)) {
+    return null;
   }
 
+  // Confirmed loss of access -> demote (no product gating needed for demotion).
   if (FREE_EVENTS.has(type)) {
     return "free";
+  }
+
+  if (ACTIVE_EVENTS.has(type)) {
+    return grantsPro(data, proProductId) ? "pro" : null;
   }
 
   if (type === "subscription.created" || type === "subscription.updated") {
     const status = typeof data.status === "string" ? data.status : "";
 
-    if (ACTIVE_STATUSES.has(status)) {
-      return "pro";
-    }
-
     if (FREE_STATUSES.has(status)) {
       return "free";
+    }
+
+    if (DUNNING_STATUSES.has(status)) {
+      // Grace period: leave the tier untouched.
+      return null;
+    }
+
+    if (ACTIVE_STATUSES.has(status)) {
+      return grantsPro(data, proProductId) ? "pro" : null;
     }
   }
 
   return null;
+}
+
+// Only grant pro when the subscription's product matches the configured pro product.
+// When `proProductId` is not configured, or the event carries no product id, the check
+// cannot be enforced and we fall through (legacy/back-compat); an EXPLICIT mismatch is
+// the attack vector ("a different product also granted pro") and is rejected.
+function grantsPro(data: Record<string, unknown>, proProductId: string | null): boolean {
+  if (!proProductId) {
+    return true;
+  }
+
+  const eventProductId = extractProductId(data);
+
+  if (!eventProductId) {
+    return true;
+  }
+
+  return eventProductId === proProductId;
+}
+
+function extractProductId(data: Record<string, unknown>): string | null {
+  return (
+    stringValue(data.product_id) ??
+    stringValue(nestedValue(data.price, "product_id")) ??
+    stringValue(nestedValue(data.product, "id"))
+  );
 }
 
 function userIdFromPolarData(data: Record<string, unknown>): string | null {

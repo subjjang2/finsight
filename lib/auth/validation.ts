@@ -28,8 +28,8 @@ export function validateAuthCredentials(input: {
     return { ok: false, message: "비밀번호를 입력해 주세요." };
   }
 
-  if (password.length < 6) {
-    return { ok: false, message: "비밀번호는 6자 이상이어야 합니다." };
+  if (password.length < 8) {
+    return { ok: false, message: "비밀번호는 8자 이상이어야 합니다." };
   }
 
   return { ok: true, email, password };

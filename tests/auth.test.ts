@@ -30,15 +30,28 @@ describe("auth validation", () => {
     });
   });
 
-  it("rejects short passwords", () => {
+  it("rejects passwords shorter than 8 characters", () => {
     expect(
       validateAuthCredentials({
         email: "user@example.com",
-        password: "12345",
+        password: "1234567",
       }),
     ).toEqual({
       ok: false,
-      message: "비밀번호는 6자 이상이어야 합니다.",
+      message: "비밀번호는 8자 이상이어야 합니다.",
+    });
+  });
+
+  it("accepts a password exactly 8 characters long", () => {
+    expect(
+      validateAuthCredentials({
+        email: "user@example.com",
+        password: "12345678",
+      }),
+    ).toEqual({
+      ok: true,
+      email: "user@example.com",
+      password: "12345678",
     });
   });
 });

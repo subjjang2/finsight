@@ -1,4 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  getPostAuthRedirectPath,
+  validateAuthCredentials,
+} from "../../../lib/auth/validation";
 
 // In E2E mode authenticate must accept ANY credentials: set the e2e session cookie
 // and redirect, without touching Supabase. signOut must clear the cookie.
@@ -64,5 +68,33 @@ describe("signOut in E2E mode", () => {
     const { signOut } = await import("./actions");
     await expect(signOut()).rejects.toThrow("REDIRECT:/login");
     expect(cookieStore.delete).toHaveBeenCalledWith("e2e_session");
+  });
+});
+
+// The `authenticate` server action is exercised end-to-end above; here we pin the
+// pure building blocks it composes (credential validation + redirect resolution),
+// which is the logic that actually has branches worth guarding.
+describe("login action building blocks", () => {
+  it("rejects weak credentials before any auth call", () => {
+    expect(
+      validateAuthCredentials({ email: "user@example.com", password: "short" }).ok,
+    ).toBe(false);
+  });
+
+  it("accepts valid credentials", () => {
+    const result = validateAuthCredentials({
+      email: "User@Example.com",
+      password: "longenough",
+    });
+    expect(result).toEqual({
+      ok: true,
+      email: "user@example.com",
+      password: "longenough",
+    });
+  });
+
+  it("keeps post-auth redirects on the dashboard", () => {
+    expect(getPostAuthRedirectPath("https://evil.example/phish")).toBe("/dashboard");
+    expect(getPostAuthRedirectPath("/dashboard/uploads")).toBe("/dashboard/uploads");
   });
 });

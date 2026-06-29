@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
-import { buildInsight, getMeteringDecision, normalizeTransactionsFromMapping } from "../../../lib/analysis";
+import { buildInsight, normalizeTransactionsFromMapping } from "../../../lib/analysis";
 import { decodeBuffer } from "../../../lib/csv/decode";
 import { parseCsv } from "../../../lib/csv/parse";
-import { nextAnalysisCount } from "../../../lib/entitlements";
+import { currentPeriod } from "../../../lib/entitlements";
 import { createServerClient } from "../../../lib/supabase/server";
 import { classifyTransactions } from "../../../services/claude";
+import { FREE_MONTHLY_LIMIT, PRO_FAIR_USE_LIMIT } from "../../../types/tier";
 import type { ColumnMapping, MappingField } from "../../../types/mapping";
 import type { Transaction } from "../../../types/transaction";
 
 const BUCKET = "card-statements";
+const MAX_TRANSACTIONS = 10_000;
 const MAPPING_FIELDS: MappingField[] = ["date", "merchant", "amount", "ignore"];
+const GENERIC_SERVER_ERROR = "Something went wrong. Please try again.";
+
+type AnalysisCredit = { allowed: boolean; new_count: number; tier: string };
 
 type AnalysisRequestBody = {
   uploadId?: unknown;
@@ -44,31 +49,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Valid column mapping is required." }, { status: 400 });
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("tier, monthly_analysis_count, count_period")
-    .eq("id", user.id)
-    .single();
-
-  if (profileError || !profile) {
-    return NextResponse.json({ error: profileError?.message ?? "Profile not found." }, { status: 500 });
-  }
-
-  const tier = profile.tier === "pro" ? "pro" : "free";
-  const countProfile = {
-    monthly_analysis_count: Number(profile.monthly_analysis_count ?? 0),
-    count_period: typeof profile.count_period === "string" ? profile.count_period : null,
-  };
-  const now = new Date();
-  const metering = getMeteringDecision(tier, countProfile, now);
-
-  if (!metering.allowed) {
-    return NextResponse.json(
-      { error: "Monthly analysis limit exceeded.", limit: metering.limit },
-      { status: tier === "free" ? 402 : 403 },
-    );
-  }
-
   const { data: upload, error: uploadError } = await supabase
     .from("uploads")
     .select("id, storage_path")
@@ -77,15 +57,23 @@ export async function POST(request: Request) {
     .single();
 
   if (uploadError || !upload) {
-    return NextResponse.json({ error: uploadError?.message ?? "Upload not found." }, { status: 404 });
+    if (uploadError) {
+      console.error("uploads lookup failed", uploadError.message);
+    }
+
+    return NextResponse.json({ error: "Upload not found." }, { status: 404 });
   }
 
   const { data: file, error: downloadError } = await supabase.storage.from(BUCKET).download(upload.storage_path);
 
   if (downloadError || !file) {
-    return NextResponse.json({ error: downloadError?.message ?? "Upload file not found." }, { status: 500 });
+    console.error("storage download failed", downloadError?.message);
+
+    return NextResponse.json({ error: GENERIC_SERVER_ERROR }, { status: 500 });
   }
 
+  // Parsing/normalization happens before metering so an invalid CSV never
+  // consumes a credit, and well before the paid Claude call.
   let normalized;
 
   try {
@@ -95,15 +83,65 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: errorMessage(error) }, { status: 400 });
   }
 
+  // No parseable rows (e.g. a header-only CSV) must not consume a paid credit.
+  if (normalized.transactions.length === 0) {
+    return NextResponse.json(
+      { error: "No valid transactions were found in the upload." },
+      { status: 400 },
+    );
+  }
+
+  if (normalized.transactions.length > MAX_TRANSACTIONS) {
+    return NextResponse.json(
+      { error: `Upload exceeds the ${MAX_TRANSACTIONS} transaction limit.` },
+      { status: 400 },
+    );
+  }
+
+  // Atomically reserve a credit (check + increment in one DB transaction) so two
+  // concurrent requests cannot both pass the limit and double-spend a paid call.
+  const period = currentPeriod(new Date());
+  const { data: creditData, error: creditError } = await supabase.rpc("consume_analysis_credit", {
+    p_period: period,
+    p_free_limit: FREE_MONTHLY_LIMIT,
+    p_pro_limit: PRO_FAIR_USE_LIMIT,
+  });
+
+  if (creditError) {
+    console.error("consume_analysis_credit failed", creditError.message);
+
+    return NextResponse.json({ error: GENERIC_SERVER_ERROR }, { status: 500 });
+  }
+
+  const credit = (Array.isArray(creditData) ? creditData[0] : creditData) as AnalysisCredit | undefined;
+
+  if (!credit) {
+    console.error("consume_analysis_credit returned no row");
+
+    return NextResponse.json({ error: GENERIC_SERVER_ERROR }, { status: 500 });
+  }
+
+  const tier = credit.tier === "pro" ? "pro" : "free";
+
+  if (!credit.allowed) {
+    return NextResponse.json(
+      { error: "Monthly analysis limit exceeded.", limit: tier === "pro" ? PRO_FAIR_USE_LIMIT : FREE_MONTHLY_LIMIT },
+      { status: tier === "free" ? 402 : 403 },
+    );
+  }
+
   let transactions: Transaction[];
 
   try {
-    const classifications = await classifyTransactions(normalized);
-    transactions = normalized.map((transaction, index) => ({
+    const classifications = await classifyTransactions(normalized.transactions);
+    transactions = normalized.transactions.map((transaction, index) => ({
       ...transaction,
       category: classifications[index]?.category ?? "etc",
     }));
-  } catch {
+  } catch (error) {
+    console.error("classifyTransactions failed", error);
+    await refundCredit(supabase, period);
+
     return NextResponse.json({ error: "Analysis is temporarily unavailable." }, { status: 503 });
   }
 
@@ -122,7 +160,10 @@ export async function POST(request: Request) {
     );
 
     if (transactionError) {
-      return NextResponse.json({ error: transactionError.message }, { status: 500 });
+      console.error("transactions insert failed", transactionError.message);
+      await refundCredit(supabase, period);
+
+      return NextResponse.json({ error: GENERIC_SERVER_ERROR }, { status: 500 });
     }
   }
 
@@ -140,7 +181,10 @@ export async function POST(request: Request) {
     .single();
 
   if (insightError || !insightRow) {
-    return NextResponse.json({ error: insightError?.message ?? "Insight could not be saved." }, { status: 500 });
+    console.error("insights insert failed", insightError?.message);
+    await refundCredit(supabase, period);
+
+    return NextResponse.json({ error: GENERIC_SERVER_ERROR }, { status: 500 });
   }
 
   const { error: mappingError } = await supabase
@@ -150,20 +194,26 @@ export async function POST(request: Request) {
     .eq("user_id", user.id);
 
   if (mappingError) {
-    return NextResponse.json({ error: mappingError.message }, { status: 500 });
+    // The analysis itself is persisted; surface a soft warning but keep the result.
+    console.error("uploads mapping update failed", mappingError.message);
   }
 
-  const nextCount = nextAnalysisCount(countProfile, now);
-  const { error: countError } = await supabase
-    .from("profiles")
-    .update(nextCount)
-    .eq("id", user.id);
+  return NextResponse.json({
+    insightId: insightRow.id,
+    insight,
+    skipped: normalized.skipped.length,
+  });
+}
 
-  if (countError) {
-    return NextResponse.json({ error: countError.message }, { status: 500 });
+async function refundCredit(
+  supabase: Awaited<ReturnType<typeof createServerClient>>,
+  period: string,
+): Promise<void> {
+  const { error } = await supabase.rpc("refund_analysis_credit", { p_period: period });
+
+  if (error) {
+    console.error("refund_analysis_credit failed", error.message);
   }
-
-  return NextResponse.json({ insightId: insightRow.id, insight });
 }
 
 function parseColumnMapping(value: unknown): ColumnMapping[] | null {

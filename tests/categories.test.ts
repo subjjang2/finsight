@@ -3,6 +3,10 @@ import { CATEGORIES, CATEGORY_IDS, categoryLabel, isCategory } from "../lib/cate
 import { FREE_MONTHLY_LIMIT, MAX_ROWS_PER_UPLOAD, PRO_FAIR_USE_LIMIT } from "../types/tier";
 
 describe("category helpers", () => {
+  it("freezes CATEGORY_IDS as a readonly tuple at runtime", () => {
+    expect(Object.isFrozen(CATEGORY_IDS)).toBe(true);
+  });
+
   it("keeps the fixed 12 category ids in PRD order", () => {
     expect(CATEGORY_IDS).toEqual([
       "dining",

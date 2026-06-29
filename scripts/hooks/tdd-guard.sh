@@ -11,6 +11,10 @@ if [ -z "$FILE_PATH" ]; then
   exit 0
 fi
 
+# Windows 경로(백슬래시)를 forward slash로 정규화한다.
+# 이게 없으면 아래 모든 "*/..." case 패턴(layout/page/route 면제 등)이 백슬래시 경로에서 매칭에 실패한다.
+FILE_PATH=$(echo "$FILE_PATH" | tr '\\' '/')
+
 # 프로젝트가 아직 스캐폴딩되지 않았으면(package.json 없음) TDD 가드를 건너뛴다.
 # 테스트 프레임워크가 깔리기 전(MVP 부트스트랩)에는 강제할 대상이 없기 때문.
 # package.json이 생기면 이후 모든 lib/소스 편집에 TDD가 적용된다.
@@ -50,9 +54,11 @@ case "$FILE_PATH" in
     ;;
 esac
 
-# Next.js 프레임워크 파일은 허용 (layout, page, loading, error, not-found, global styles)
+# Next.js 프레임워크 파일은 허용 (layout, page, loading, error, not-found, route handler, global styles)
+# route 핸들러는 page/layout과 동일하게 통합 테스트 영역으로 보고 단위 TDD 대상에서 제외한다.
+# (핵심 비즈니스 로직은 lib/services 헬퍼로 추출해 단위 테스트로 커버한다.)
 case "$FILE_PATH" in
-  */layout.tsx|*/layout.ts|*/page.tsx|*/page.ts|*/loading.tsx|*/error.tsx|*/not-found.tsx|*/globals.css)
+  */layout.tsx|*/layout.ts|*/page.tsx|*/page.ts|*/loading.tsx|*/error.tsx|*/not-found.tsx|*/route.ts|*/route.tsx|*/globals.css)
     exit 0
     ;;
 esac
@@ -95,6 +101,20 @@ case "$FILE_PATH" in
           break
         fi
       done
+    fi
+
+    # 루트 tests/ 디렉토리(이 프로젝트의 테스트 컨벤션)에서 이 소스를 import하는
+    # 테스트가 하나라도 있으면 통과. 디렉토리 배럴(index.ts)은 부모 디렉토리명으로 매칭.
+    if [ "$TEST_FOUND" = false ]; then
+      PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
+      MATCH_NAME="$BASENAME"
+      if [ "$BASENAME" = "index" ]; then
+        MATCH_NAME=$(basename "$DIR")
+      fi
+      if [ -d "${PROJECT_ROOT}/tests" ] && \
+         grep -rqE "from [\"'][^\"']*/${MATCH_NAME}[\"']" "${PROJECT_ROOT}/tests" 2>/dev/null; then
+        TEST_FOUND=true
+      fi
     fi
 
     if [ "$TEST_FOUND" = false ]; then

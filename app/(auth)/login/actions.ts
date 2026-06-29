@@ -29,26 +29,6 @@ function getPublicSiteUrl() {
   );
 }
 
-async function ensureProfileRow(supabase: Awaited<ReturnType<typeof createServerClient>>) {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    return;
-  }
-
-  await supabase.from("profiles").insert(
-    {
-      id: user.id,
-      email: user.email,
-      tier: "free",
-      monthly_analysis_count: 0,
-      count_period: new Date().toISOString().slice(0, 7),
-    },
-  );
-}
-
 export async function authenticate(
   _previousState: AuthActionState,
   formData: FormData,
@@ -91,7 +71,9 @@ export async function authenticate(
       };
     }
 
-    await ensureProfileRow(supabase);
+    // Profile rows are created by the `handle_new_user` Postgres trigger
+    // (supabase/migrations/0001_init.sql); profiles has no insert RLS policy,
+    // so a client-side insert here would be silently rejected anyway.
     redirect(next);
   }
 
@@ -112,7 +94,7 @@ export async function authenticate(
   }
 
   if (data.session) {
-    await ensureProfileRow(supabase);
+    // Profile creation is handled by the `handle_new_user` trigger on signup.
     redirect(next);
   }
 

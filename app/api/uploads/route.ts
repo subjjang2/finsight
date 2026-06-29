@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { decodeBuffer } from "../../../lib/csv/decode";
 import { parseCsv } from "../../../lib/csv/parse";
+import { validateUploadFile } from "../../../lib/csv/upload";
 import { createServerClient } from "../../../lib/supabase/server";
 import { mapColumns } from "../../../services/claude";
 
@@ -24,6 +25,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "CSV file is required." }, { status: 400 });
   }
 
+  const validation = validateUploadFile({
+    size: file.size,
+    type: file.type,
+    name: file.name,
+  });
+
+  if (!validation.ok) {
+    return NextResponse.json({ error: validation.message }, { status: validation.status });
+  }
+
   let parsed;
 
   try {
@@ -35,12 +46,13 @@ export async function POST(request: Request) {
 
   const storagePath = `${user.id}/${crypto.randomUUID()}-${safeFileName(file.name)}`;
   const { error: uploadError } = await supabase.storage.from(BUCKET).upload(storagePath, file, {
-    contentType: file.type || "text/csv",
+    contentType: "text/csv",
     upsert: false,
   });
 
   if (uploadError) {
-    return NextResponse.json({ error: uploadError.message }, { status: 500 });
+    console.error("[uploads] storage upload failed", uploadError);
+    return NextResponse.json({ error: "파일을 저장하지 못했습니다." }, { status: 500 });
   }
 
   let mapping;
@@ -64,7 +76,8 @@ export async function POST(request: Request) {
     .single();
 
   if (insertError || !upload) {
-    return NextResponse.json({ error: insertError?.message ?? "Upload record could not be created." }, { status: 500 });
+    console.error("[uploads] upload record insert failed", insertError);
+    return NextResponse.json({ error: "업로드 정보를 저장하지 못했습니다." }, { status: 500 });
   }
 
   return NextResponse.json({

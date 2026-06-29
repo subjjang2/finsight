@@ -42,7 +42,11 @@ describe("claude service", () => {
       { source: "승인번호", sample: "A001", field: "ignore", confidence: 0.9 },
     ]);
 
-    expect(anthropicConstructorMock).toHaveBeenCalledWith({ apiKey: "test-key" });
+    expect(anthropicConstructorMock).toHaveBeenCalledWith({
+      apiKey: "test-key",
+      timeout: 30_000,
+      maxRetries: 1,
+    });
     expect(parseMock).toHaveBeenCalledTimes(1);
     expect(parseMock.mock.calls[0][0]).toMatchObject({
       model: "claude-sonnet-4-6",
@@ -82,6 +86,63 @@ describe("claude service", () => {
       "travel",
       "etc",
     ]);
+  });
+
+  it("throws when Claude returns fewer classifications than transactions", async () => {
+    parseMock.mockResolvedValueOnce({
+      parsed_output: [{ category: "dining" }],
+    });
+    const { classifyTransactions } = await import("../services/claude");
+
+    await expect(
+      classifyTransactions([
+        { date: "2026-05-02", merchant: "김밥천국", amount: 8000 },
+        { date: "2026-05-03", merchant: "쿠팡", amount: 12000 },
+      ]),
+    ).rejects.toThrow(/classification/i);
+  });
+
+  it("throws when structured output is not a JSON array", async () => {
+    parseMock.mockResolvedValueOnce({
+      parsed_output: { category: "dining" },
+    });
+    const { classifyTransactions } = await import("../services/claude");
+
+    await expect(
+      classifyTransactions([{ date: "2026-05-02", merchant: "김밥천국", amount: 8000 }]),
+    ).rejects.toThrow(/array/i);
+  });
+
+  it("throws a meaningful error when the text output is not valid JSON", async () => {
+    parseMock.mockResolvedValueOnce({
+      content: [{ type: "text", text: "not json at all" }],
+    });
+    const { classifyTransactions } = await import("../services/claude");
+
+    await expect(
+      classifyTransactions([{ date: "2026-05-02", merchant: "김밥천국", amount: 8000 }]),
+    ).rejects.toThrow(/json/i);
+  });
+
+  it("rejects classification batches larger than the row cap before calling Claude", async () => {
+    const { classifyTransactions } = await import("../services/claude");
+    const txs = Array.from({ length: 10_001 }, (_, index) => ({
+      date: "2026-05-02",
+      merchant: `m${index}`,
+      amount: 1000,
+    }));
+
+    await expect(classifyTransactions(txs)).rejects.toThrow(/10000|limit|too many/i);
+    expect(parseMock).not.toHaveBeenCalled();
+  });
+
+  it("instructs Claude to treat input strictly as data (prompt-injection boundary)", async () => {
+    parseMock.mockResolvedValueOnce({ parsed_output: [{ category: "dining" }] });
+    const { classifyTransactions } = await import("../services/claude");
+
+    await classifyTransactions([{ date: "2026-05-02", merchant: "김밥천국", amount: 8000 }]);
+
+    expect(parseMock.mock.calls[0][0].system).toMatch(/data/i);
   });
 
   it("propagates Claude failures without retrying", async () => {

@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { buildInsight, getMeteringDecision } from "../lib/analysis";
+import { buildInsight, getMeteringDecision, normalizeTransactionsFromMapping } from "../lib/analysis";
+import type { ColumnMapping } from "../types/mapping";
+
+const MAPPING: ColumnMapping[] = [
+  { source: "이용일자", sample: "2026.05.02", field: "date", confidence: 1 },
+  { source: "가맹점", sample: "스타벅스", field: "merchant", confidence: 1 },
+  { source: "금액", sample: "6,300", field: "amount", confidence: 1 },
+];
+const HEADERS = ["이용일자", "가맹점", "금액"];
 
 describe("buildInsight", () => {
   it("aggregates classified transactions into totals, counts, and category breakdowns", () => {
@@ -27,6 +35,46 @@ describe("buildInsight", () => {
       breakdown: [],
       summary: "분석할 거래가 없습니다.",
     });
+  });
+});
+
+describe("normalizeTransactionsFromMapping", () => {
+  it("normalizes valid rows and skips unparseable footer/summary rows without throwing", () => {
+    const rows = [
+      ["2026.05.02", "스타벅스 강남R점", "6,300"],
+      ["합계", "", "120,000"],
+      ["2026.05.04", "쿠팡", "38,900"],
+      ["", "", ""],
+    ];
+
+    const result = normalizeTransactionsFromMapping(HEADERS, rows, MAPPING);
+
+    expect(result.transactions).toEqual([
+      { date: "2026-05-02", merchant: "스타벅스 강남R점", amount: 6300 },
+      { date: "2026-05-04", merchant: "쿠팡", amount: 38900 },
+    ]);
+    expect(result.skipped.map((s) => s.index)).toEqual([1, 3]);
+    expect(result.skipped[0].reason).toBeTruthy();
+  });
+
+  it("throws when every row fails to normalize", () => {
+    const rows = [
+      ["합계", "", "120,000"],
+      ["안내", "", ""],
+    ];
+
+    expect(() => normalizeTransactionsFromMapping(HEADERS, rows, MAPPING)).toThrow(/no valid|유효/i);
+  });
+
+  it("still throws when a required mapping field is missing", () => {
+    const badMapping: ColumnMapping[] = [
+      { source: "이용일자", sample: "2026.05.02", field: "date", confidence: 1 },
+      { source: "가맹점", sample: "스타벅스", field: "merchant", confidence: 1 },
+    ];
+
+    expect(() => normalizeTransactionsFromMapping(HEADERS, [["2026.05.02", "스타벅스", "6,300"]], badMapping)).toThrow(
+      /mapping field/i,
+    );
   });
 });
 

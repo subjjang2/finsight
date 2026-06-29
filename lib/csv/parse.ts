@@ -30,6 +30,9 @@ function parseRecords(text: string): string[][] {
   let record: string[] = [];
   let field = "";
   let inQuotes = false;
+  // True only at the very start of a field. RFC 4180 allows a quote to open a
+  // quoted field only when it is the first character; elsewhere it is literal.
+  let atFieldStart = true;
 
   for (let index = 0; index < text.length; index += 1) {
     const char = text[index];
@@ -40,7 +43,10 @@ function parseRecords(text: string): string[][] {
         field += '"';
         index += 1;
       } else if (char === '"') {
+        // Closing quote. Any further characters in this field are treated as
+        // literals (robust handling of malformed input after a closing quote).
         inQuotes = false;
+        atFieldStart = false;
       } else {
         field += char;
       }
@@ -48,14 +54,16 @@ function parseRecords(text: string): string[][] {
       continue;
     }
 
-    if (char === '"') {
+    if (char === '"' && atFieldStart) {
       inQuotes = true;
+      atFieldStart = false;
       continue;
     }
 
     if (char === ",") {
       record.push(field);
       field = "";
+      atFieldStart = true;
       continue;
     }
 
@@ -64,6 +72,7 @@ function parseRecords(text: string): string[][] {
       records.push(record);
       record = [];
       field = "";
+      atFieldStart = true;
 
       if (char === "\r" && next === "\n") {
         index += 1;
@@ -72,7 +81,10 @@ function parseRecords(text: string): string[][] {
       continue;
     }
 
+    // Any other character (including a stray '"' that is not at the field start)
+    // is appended literally.
     field += char;
+    atFieldStart = false;
   }
 
   if (inQuotes) {

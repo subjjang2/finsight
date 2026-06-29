@@ -13,6 +13,16 @@ export type NormalizedTransactionInput = {
   amount: number;
 };
 
+export type SkippedRow = {
+  index: number;
+  reason: string;
+};
+
+export type NormalizeResult = {
+  transactions: NormalizedTransactionInput[];
+  skipped: SkippedRow[];
+};
+
 export type MeteringDecision = {
   allowed: boolean;
   effectiveCount: number;
@@ -70,14 +80,33 @@ export function normalizeTransactionsFromMapping(
   headers: string[],
   rows: string[][],
   mapping: ColumnMapping[],
-): NormalizedTransactionInput[] {
+): NormalizeResult {
   const indexes = requiredMappingIndexes(headers, mapping);
+  const transactions: NormalizedTransactionInput[] = [];
+  const skipped: SkippedRow[] = [];
 
-  return rows.map((row) => ({
-    date: normalizeDate(row[indexes.date] ?? ""),
-    merchant: normalizeMerchant(row[indexes.merchant] ?? ""),
-    amount: normalizeAmount(row[indexes.amount] ?? ""),
-  }));
+  rows.forEach((row, index) => {
+    try {
+      transactions.push({
+        date: normalizeDate(row[indexes.date] ?? ""),
+        merchant: normalizeMerchant(row[indexes.merchant] ?? ""),
+        amount: normalizeAmount(row[indexes.amount] ?? ""),
+      });
+    } catch (error) {
+      // A single malformed row (summary/footer line, blank cell, total row) must
+      // not abort the whole upload — collect it and continue.
+      skipped.push({
+        index,
+        reason: error instanceof Error ? error.message : "Unparseable row.",
+      });
+    }
+  });
+
+  if (transactions.length === 0 && rows.length > 0) {
+    throw new Error("No valid transaction rows could be parsed from the upload.");
+  }
+
+  return { transactions, skipped };
 }
 
 function requiredMappingIndexes(headers: string[], mapping: ColumnMapping[]): Record<Exclude<MappingField, "ignore">, number> {

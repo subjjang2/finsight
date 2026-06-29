@@ -23,6 +23,13 @@ describe("decodeBuffer", () => {
 
     expect(decodeBuffer(bytes)).toBe("이용일자,금액\n");
   });
+
+  it("falls back without throwing when bytes are valid in neither UTF-8 nor EUC-KR", () => {
+    const bytes = Uint8Array.from([0xff, 0xfe, 0x00, 0x41, 0x80, 0x81]);
+
+    expect(() => decodeBuffer(bytes)).not.toThrow();
+    expect(typeof decodeBuffer(bytes)).toBe("string");
+  });
 });
 
 describe("parseCsv", () => {
@@ -35,6 +42,27 @@ describe("parseCsv", () => {
         ["2026.05.02", "A, B Store", "6,300"],
         ["2026.05.03", 'He said "hi"', "4800"],
       ],
+    });
+  });
+
+  it("treats a quote inside an unquoted field as a literal (RFC 4180)", () => {
+    const csv = 'date,merchant,amount\r\n2026.05.02,55" TV 매장,120000\r\n2026.05.03,정상가맹점,4800\r\n';
+
+    expect(parseCsv(csv)).toEqual({
+      headers: ["date", "merchant", "amount"],
+      rows: [
+        ["2026.05.02", '55" TV 매장', "120000"],
+        ["2026.05.03", "정상가맹점", "4800"],
+      ],
+    });
+  });
+
+  it("handles characters that follow a closing quote without breaking the row", () => {
+    const csv = 'date,merchant,amount\r\n2026.05.02,"A, B"점,4800\r\n';
+
+    expect(parseCsv(csv)).toEqual({
+      headers: ["date", "merchant", "amount"],
+      rows: [["2026.05.02", "A, B점", "4800"]],
     });
   });
 
@@ -59,6 +87,12 @@ describe("normalizeAmount", () => {
     expect(normalizeAmount("6,300 환불")).toBe(-6300);
   });
 
+  it("treats a trailing minus sign as a negative amount", () => {
+    expect(normalizeAmount("6,300-")).toBe(-6300);
+    expect(normalizeAmount("6300-")).toBe(-6300);
+    expect(normalizeAmount("₩6,300-")).toBe(-6300);
+  });
+
   it("throws on non-numeric amounts", () => {
     expect(() => normalizeAmount("금액없음")).toThrow(/amount/i);
   });
@@ -71,9 +105,20 @@ describe("normalizeDate", () => {
     expect(normalizeDate("2026/05/02")).toBe("2026-05-02");
   });
 
+  it("accepts a date with a trailing time suffix", () => {
+    expect(normalizeDate("2026-05-02 13:45")).toBe("2026-05-02");
+    expect(normalizeDate("2026.05.02 13:45:30")).toBe("2026-05-02");
+    expect(normalizeDate("2026-05-02T13:45")).toBe("2026-05-02");
+  });
+
+  it("accepts the compact YYYYMMDD format", () => {
+    expect(normalizeDate("20260502")).toBe("2026-05-02");
+  });
+
   it("throws on invalid dates", () => {
     expect(() => normalizeDate("2026.02.30")).toThrow(/date/i);
     expect(() => normalizeDate("not a date")).toThrow(/date/i);
+    expect(() => normalizeDate("20261302")).toThrow(/date/i);
   });
 });
 

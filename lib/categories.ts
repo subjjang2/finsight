@@ -15,7 +15,9 @@ export const CATEGORIES: ReadonlyArray<{ id: Category; label: string }> = [
   { id: "etc", label: "기타" },
 ] as const;
 
-export const CATEGORY_IDS: Category[] = CATEGORIES.map((category) => category.id);
+export const CATEGORY_IDS: readonly Category[] = Object.freeze(
+  CATEGORIES.map((category) => category.id),
+);
 
 export function isCategory(x: string): x is Category {
   return CATEGORY_IDS.includes(x as Category);

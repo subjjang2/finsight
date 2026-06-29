@@ -6,7 +6,16 @@ export function decodeBuffer(buf: Uint8Array): string {
   try {
     return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
   } catch {
+    // Not valid UTF-8 — try EUC-KR (common for Korean card statements).
+  }
+
+  try {
     return new TextDecoder("euc-kr", { fatal: true }).decode(bytes);
+  } catch {
+    // Neither encoding matched cleanly. Fall back to a non-fatal UTF-8 decode so
+    // a single bad byte never aborts the whole upload; undecodable bytes become
+    // the Unicode replacement character instead of throwing.
+    return new TextDecoder("utf-8", { fatal: false }).decode(bytes);
   }
 }
 
