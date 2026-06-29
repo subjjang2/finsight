@@ -1,0 +1,33 @@
+{
+  "PreToolUse": [
+    {
+      "matcher": "Bash|shell|exec_command",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "INPUT=$(cat); CMD=$(printf '%s' \"$INPUT\" | jq -r 'def s: if type==\"array\" then join(\" \") else tostring end; (.tool_input.command // .tool_input.cmd // .tool_input.script // \"\") | s' 2>/dev/null); if printf '%s' \"$CMD\" | grep -qE 'rm[[:space:]]+-rf|git[[:space:]]+push[[:space:]]+--force|git[[:space:]]+reset[[:space:]]+--hard|DROP[[:space:]]+TABLE'; then echo 'BLOCKED: 위험한 명령어가 감지되었습니다.' >&2; exit 1; fi"
+        }
+      ]
+    },
+    {
+      "matcher": "Edit|Write|apply_patch",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash \"$(git rev-parse --show-toplevel)/scripts/hooks/tdd-guard.sh\""
+        }
+      ]
+    }
+  ],
+  "Stop": [
+    {
+      "matcher": "",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "npm run lint 2>&1 && npm run build 2>&1 && npm run test 2>&1"
+        }
+      ]
+    }
+  ]
+}
