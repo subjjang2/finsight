@@ -18,10 +18,12 @@
 - 거래 분류는 고정 카테고리 enum(10~12개)만 사용한다. AI가 임의 카테고리를 생성하지 않게 한다.
 - AI 컬럼 매핑 결과는 사용자가 확인·수정하는 단계를 반드시 거친 뒤 분석한다.
 - 컴포넌트는 `components/`, 타입은 `types/`, 외부 API 래퍼는 `services/`, 유틸은 `lib/`에 분리한다.
-- UI는 한국어. 시각 규칙은 `docs/UI_GUIDE.md`(색·타이포·컴포넌트, AI-슬롭 안티패턴), 화면 흐름·온보딩·단계 전환은 `docs/UX_GUIDE.md`(퍼널)를 정본으로 따른다.
+- UI는 한국어. 시각 규칙은 `docs/UI_GUIDE.md`(색·타이포·컴포넌트, AI-슬롭 안티패턴), 화면 흐름·온보딩·단계 전환은 `docs/UX_GUIDE.md`(퍼널), 재사용 컴포넌트 목록은 `docs/COMPONENTS.md`를 정본으로 따른다.
 
 ## 개발 프로세스
 - CRITICAL: 새 기능 구현 시 반드시 테스트를 먼저 작성하고, 테스트가 통과하는 구현을 작성할 것 (TDD). `scripts/hooks/tdd-guard.sh`가 강제.
+  - 테스트 러너는 Vitest. 테스트는 소스 옆에 `*.test.ts`로 colocate한다 (예: `services/claude.test.ts`).
+  - route 핸들러(`route.ts`)는 통합 테스트가 없으면 tdd-guard가 Edit를 차단한다. 같은 폴더에 `route.test.ts`를 두거나 핵심 로직을 테스트된 `lib`/`services`로 추출할 것. page/layout/types/config는 면제.
 - 커밋 메시지는 conventional commits 형식을 따를 것 (feat:, fix:, docs:, refactor:)
 - 유료 API(Claude) 호출이 발생하는 작업은 실행 전 사용자에게 확인받는다.
 
@@ -29,7 +31,8 @@
 npm run dev      # 개발 서버
 npm run build    # 프로덕션 빌드 (output: standalone)
 npm run lint     # ESLint
-npm run test     # 테스트
+npm run test     # 테스트 (Vitest)
+# E2E 시나리오·실행 방식은 docs/E2E_TEST_SCENARIOS.md 참조
 
 ## 환경변수
 ANTHROPIC_API_KEY                # 서버 전용
