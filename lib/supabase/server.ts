@@ -1,8 +1,10 @@
 import { createServerClient as createSupabaseServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { E2E_COOKIE, createFakeSupabaseClient, isE2E } from "../e2e";
 
-export async function createServerClient() {
-  const cookieStore = await cookies();
+type CookieStore = Awaited<ReturnType<typeof cookies>>;
+
+function createRealServerClient(cookieStore: CookieStore) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -26,4 +28,17 @@ export async function createServerClient() {
       },
     },
   });
+}
+
+export async function createServerClient() {
+  const cookieStore = await cookies();
+
+  if (isE2E()) {
+    const authed = cookieStore.get(E2E_COOKIE)?.value === "1";
+    return createFakeSupabaseClient({ authed }) as unknown as ReturnType<
+      typeof createRealServerClient
+    >;
+  }
+
+  return createRealServerClient(cookieStore);
 }

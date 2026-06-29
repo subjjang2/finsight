@@ -1,7 +1,9 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerClient } from "../../../lib/supabase/server";
+import { E2E_COOKIE, isE2E } from "../../../lib/e2e";
 import {
   getPostAuthRedirectPath,
   validateAuthCredentials,
@@ -53,6 +55,17 @@ export async function authenticate(
 ): Promise<AuthActionState> {
   const mode = getAuthMode(formData.get("mode"));
   const next = getPostAuthRedirectPath(String(formData.get("next") ?? "") || null);
+
+  if (isE2E()) {
+    const cookieStore = await cookies();
+    cookieStore.set(E2E_COOKIE, "1", {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+    });
+    redirect(next);
+  }
+
   const credentials = validateAuthCredentials({
     email: formData.get("email"),
     password: formData.get("password"),
@@ -111,6 +124,12 @@ export async function authenticate(
 }
 
 export async function signOut() {
+  if (isE2E()) {
+    const cookieStore = await cookies();
+    cookieStore.delete(E2E_COOKIE);
+    redirect("/login");
+  }
+
   const supabase = await createServerClient();
   await supabase.auth.signOut();
   redirect("/login");

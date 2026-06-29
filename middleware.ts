@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
+import { E2E_COOKIE, e2eRouteDecision, isE2E } from "./lib/e2e";
 
 function createSupabaseMiddlewareClient(
   request: NextRequest,
@@ -27,6 +28,29 @@ function createSupabaseMiddlewareClient(
 }
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  if (isE2E()) {
+    const authed = request.cookies.get(E2E_COOKIE)?.value === "1";
+    const decision = e2eRouteDecision(pathname, authed);
+
+    if (decision === "login") {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/login";
+      redirectUrl.searchParams.set("next", `${pathname}${request.nextUrl.search}`);
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    if (decision === "dashboard") {
+      const redirectUrl = request.nextUrl.clone();
+      redirectUrl.pathname = "/dashboard";
+      redirectUrl.search = "";
+      return NextResponse.redirect(redirectUrl);
+    }
+
+    return NextResponse.next({ request });
+  }
+
   const response = NextResponse.next({
     request,
   });
@@ -34,7 +58,6 @@ export async function middleware(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const pathname = request.nextUrl.pathname;
 
   if (pathname.startsWith("/dashboard") && !user) {
     const redirectUrl = request.nextUrl.clone();
