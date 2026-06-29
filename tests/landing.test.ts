@@ -42,6 +42,16 @@ describe("landing page — UX guide 단계 1 (랜딩 → 가입)", () => {
     expect(html).toContain("인사이트");
   });
 
+  it("제품 미리보기: 실제 인사이트 화면을 보여 가치를 증명한다 (데이터가 주인공)", () => {
+    const html = render();
+    // 결과 화면의 핵심 숫자(총 지출 + 원화)와 1위 카테고리를 미리 노출한다.
+    expect(html).toContain("총 지출");
+    expect(html).toContain("₩");
+    expect(html).toContain("식비");
+    // 금액은 tabular-nums로 자릿수 정렬한다.
+    expect(html).toContain("tabular-nums");
+  });
+
   it("랜딩 레이아웃 폭은 max-w-5xl을 사용한다", () => {
     expect(render()).toContain("max-w-5xl");
   });
