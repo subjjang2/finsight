@@ -64,6 +64,12 @@ class StepExecutor:
     FEAT_MSG = "feat({phase}): step {num} — {name}"
     CHORE_MSG = "chore({phase}): step {num} output"
     TZ = timezone(timedelta(hours=9))
+    # codex의 self-report("completed")를 그대로 믿지 않고, 커밋 전에 하네스가
+    # 직접 돌리는 독립 검증 명령. step의 "verify" 필드로 재정의할 수 있고,
+    # 빈 리스트([])를 주면 검증을 건너뛴다(문서-only step 등). build는 비싸고
+    # 부분 산출물 step에서 실패할 수 있어 기본에선 제외 — 필요한 step만 verify에 넣는다.
+    DEFAULT_VERIFY = ["npm run test", "npm run lint"]
+    VERIFY_TIMEOUT = 900
 
     def __init__(self, phase_dir_name: str, *, auto_push: bool = False):
         self._root = str(ROOT)
@@ -145,6 +151,37 @@ class StepExecutor:
 
         print(f"  Branch: {branch}")
 
+    # --- 독립 검증 게이트 ---
+
+    def _verify_step(self, step: dict) -> tuple[bool, str]:
+        """codex가 completed로 표시한 step을 커밋 전에 하네스가 직접 검증한다.
+
+        step["verify"]가 있으면 그 명령들을, 없으면 DEFAULT_VERIFY를 순서대로 실행한다.
+        빈 리스트([])면 검증을 건너뛴다(문서-only step 등). 하나라도 실패하면
+        (False, 실패 요약)을 반환해 호출부가 retry/error 처리하게 한다.
+        """
+        commands = step.get("verify", self.DEFAULT_VERIFY)
+        if isinstance(commands, str):
+            commands = [commands]
+        if not commands:
+            return True, ""
+
+        for cmd in commands:
+            with progress_indicator(f"verify: {cmd}"):
+                try:
+                    r = subprocess.run(
+                        cmd, cwd=self._root, shell=True,
+                        capture_output=True, text=True,
+                        encoding="utf-8", errors="replace",
+                        timeout=self.VERIFY_TIMEOUT,
+                    )
+                except subprocess.TimeoutExpired:
+                    return False, f"$ {cmd}\n[검증 타임아웃 {self.VERIFY_TIMEOUT}s 초과]"
+            if r.returncode != 0:
+                tail = ((r.stdout or "") + (r.stderr or ""))[-2000:]
+                return False, f"$ {cmd} (exit {r.returncode})\n{tail}"
+        return True, ""
+
     def _commit_step(self, step_num: int, step_name: str):
         output_rel = f"phases/{self._phase_dir_name}/step{step_num}-output.json"
         index_rel = f"phases/{self._phase_dir_name}/index.json"
@@ -210,9 +247,6 @@ class StepExecutor:
 
     def _build_preamble(self, guardrails: str, step_context: str,
                         prev_error: Optional[str] = None) -> str:
-        commit_example = self.FEAT_MSG.format(
-            phase=self._phase_name, num="N", name="<step-name>"
-        )
         retry_section = ""
         if prev_error:
             retry_section = (
@@ -232,8 +266,9 @@ class StepExecutor:
             f"   - AC 통과 → \"completed\" + \"summary\" 필드에 이 step의 산출물을 한 줄로 요약\n"
             f"   - {self.MAX_RETRIES}회 수정 시도 후에도 실패 → \"error\" + \"error_message\" 기록\n"
             f"   - 사용자 개입이 필요한 경우 (API 키, 인증, 수동 설정 등) → \"blocked\" + \"blocked_reason\" 기록 후 즉시 중단\n"
-            f"6. 모든 변경사항을 커밋하라:\n"
-            f"   {commit_example}\n\n---\n\n"
+            f"6. 변경사항을 직접 커밋하지 마라. 하네스가 status=\"completed\"를 확인한 뒤\n"
+            f"   독립 검증(test/lint)을 돌리고, 통과하면 하네스가 커밋한다.\n"
+            f"   검증이 실패하면 그 출력이 다음 시도에 전달되니 코드를 수정해 다시 통과시켜라.\n\n---\n\n"
         )
 
     # --- Codex 호출 ---
@@ -350,13 +385,37 @@ class StepExecutor:
             ts = self._stamp()
 
             if status == "completed":
+                ok, verify_err = self._verify_step(step)
+                if ok:
+                    for s in index["steps"]:
+                        if s["step"] == step_num:
+                            s["completed_at"] = ts
+                    self._write_json(self._index_file, index)
+                    self._commit_step(step_num, step_name)
+                    print(f"  ✓ Step {step_num}: {step_name} [{elapsed}s]")
+                    return True
+
+                # codex는 completed라 했지만 하네스 검증 실패 → 자기보고 신뢰하지 않는다.
+                err_msg = f"하네스 검증 실패:\n{verify_err}"
+                if attempt < self.MAX_RETRIES:
+                    for s in index["steps"]:
+                        if s["step"] == step_num:
+                            s["status"] = "pending"
+                            s.pop("error_message", None)
+                    self._write_json(self._index_file, index)
+                    prev_error = err_msg
+                    print(f"  ↻ Step {step_num}: 검증 실패 retry {attempt}/{self.MAX_RETRIES}")
+                    continue
                 for s in index["steps"]:
                     if s["step"] == step_num:
-                        s["completed_at"] = ts
+                        s["status"] = "error"
+                        s["error_message"] = f"[검증 {self.MAX_RETRIES}회 실패] {err_msg}"
+                        s["failed_at"] = ts
                 self._write_json(self._index_file, index)
                 self._commit_step(step_num, step_name)
-                print(f"  ✓ Step {step_num}: {step_name} [{elapsed}s]")
-                return True
+                print(f"  ✗ Step {step_num}: {step_name} 검증 실패 [{elapsed}s]")
+                self._update_top_index("error")
+                sys.exit(1)
 
             if status == "blocked":
                 for s in index["steps"]:

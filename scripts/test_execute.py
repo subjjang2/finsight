@@ -245,9 +245,11 @@ class TestBuildPreamble:
         result = executor._build_preamble("", ctx)
         assert "이전 Step 산출물" in result
 
-    def test_includes_commit_example(self, executor):
+    def test_instructs_not_to_commit(self, executor):
+        # 검증 게이트 도입 후: codex가 직접 커밋하지 않고 하네스가 커밋한다.
         result = executor._build_preamble("", "")
-        assert "feat(mvp):" in result
+        assert "직접 커밋하지 마라" in result
+        assert "하네스가 커밋한다" in result
 
     def test_includes_rules(self, executor):
         result = executor._build_preamble("", "")
@@ -376,6 +378,63 @@ class TestCheckoutBranch:
         with pytest.raises(SystemExit) as exc_info:
             executor._checkout_branch()
         assert exc_info.value.code == 1
+
+
+# ---------------------------------------------------------------------------
+# _verify_step (mocked)
+# ---------------------------------------------------------------------------
+
+class TestVerifyStep:
+    def test_skips_when_verify_empty(self, executor):
+        # 빈 리스트 → 검증 건너뛰고 통과 (문서-only step)
+        with patch("subprocess.run") as mock_run:
+            ok, msg = executor._verify_step({"step": 2, "verify": []})
+        assert ok is True
+        assert msg == ""
+        mock_run.assert_not_called()
+
+    def test_uses_default_when_no_verify_field(self, executor):
+        mock_result = MagicMock(returncode=0, stdout="", stderr="")
+        with patch("subprocess.run", return_value=mock_result) as mock_run:
+            ok, _ = executor._verify_step({"step": 2})
+        assert ok is True
+        ran = [c.args[0] for c in mock_run.call_args_list]
+        assert ran == ex.StepExecutor.DEFAULT_VERIFY
+
+    def test_custom_verify_commands(self, executor):
+        mock_result = MagicMock(returncode=0, stdout="", stderr="")
+        with patch("subprocess.run", return_value=mock_result) as mock_run:
+            ok, _ = executor._verify_step({"step": 2, "verify": ["npm run build"]})
+        assert ok is True
+        assert mock_run.call_args_list[0].args[0] == "npm run build"
+
+    def test_string_verify_coerced_to_list(self, executor):
+        mock_result = MagicMock(returncode=0, stdout="", stderr="")
+        with patch("subprocess.run", return_value=mock_result) as mock_run:
+            ok, _ = executor._verify_step({"step": 2, "verify": "npm test"})
+        assert ok is True
+        assert mock_run.call_count == 1
+
+    def test_failure_returns_false_and_output(self, executor):
+        mock_result = MagicMock(returncode=1, stdout="FAIL out", stderr="err detail")
+        with patch("subprocess.run", return_value=mock_result):
+            ok, msg = executor._verify_step({"step": 2, "verify": ["npm test"]})
+        assert ok is False
+        assert "npm test" in msg
+        assert "FAIL out" in msg or "err detail" in msg
+
+    def test_stops_at_first_failure(self, executor):
+        results = [MagicMock(returncode=1, stdout="boom", stderr="")]
+        with patch("subprocess.run", side_effect=results) as mock_run:
+            ok, _ = executor._verify_step({"step": 2, "verify": ["a", "b"]})
+        assert ok is False
+        assert mock_run.call_count == 1  # 두 번째 명령은 실행 안 함
+
+    def test_timeout_returns_false(self, executor):
+        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("npm test", 1)):
+            ok, msg = executor._verify_step({"step": 2, "verify": ["npm test"]})
+        assert ok is False
+        assert "타임아웃" in msg
 
 
 # ---------------------------------------------------------------------------
