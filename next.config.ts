@@ -16,7 +16,10 @@ const cspDirectives = [
   // OAuth sign-in posts a form whose redirect chain leaves the origin
   // (→ Supabase /auth/v1/authorize → accounts.google.com); form-action governs
   // the whole chain, so both hops must be allowlisted.
-  "form-action 'self' https://*.supabase.co https://accounts.google.com",
+  // The Pro upgrade form posts to /api/polar/checkout, which 303-redirects to
+  // Polar's hosted checkout (polar.sh in prod, sandbox.polar.sh in Sandbox);
+  // form-action covers that redirect target too, so Polar must be allowlisted.
+  "form-action 'self' https://*.supabase.co https://accounts.google.com https://polar.sh https://*.polar.sh",
   "frame-ancestors 'none'",
   "object-src 'none'",
   isProd

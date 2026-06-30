@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildPolarSignatureHeader,
@@ -284,6 +285,29 @@ describe("polar webhook signature verification", () => {
     const timestamp = Math.floor(Date.now() / 1000).toString();
     const webhookId = "wh_123";
     const signature = signPolarWebhookPayload({ payload, secret, timestamp, webhookId });
+
+    expect(
+      verifyPolarSignature({
+        payload,
+        secret,
+        webhookId,
+        timestamp,
+        header: buildPolarSignatureHeader({ timestamp, webhookId, signatures: [signature] }),
+      }),
+    ).toBe(true);
+  });
+
+  it("accepts a signature produced with the raw secret string as the HMAC key (Polar's scheme)", () => {
+    // Observed in production: Polar signs with HMAC keyed on the *raw* secret string
+    // (the whole `whsec_…` value as UTF-8 bytes), not the Standard-Webhooks base64-decoded
+    // key. Verification must accept this, otherwise every live delivery returns 401.
+    const payload = JSON.stringify({ type: "subscription.active", data: {} });
+    const secret = `whsec_${Buffer.from("polar-raw-secret").toString("base64")}`;
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    const webhookId = "wh_raw";
+    const signature = createHmac("sha256", Buffer.from(secret, "utf8"))
+      .update(`${webhookId}.${timestamp}.${payload}`)
+      .digest("base64");
 
     expect(
       verifyPolarSignature({

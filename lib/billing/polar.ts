@@ -149,14 +149,21 @@ export function verifyPolarSignature({
   }
 
   const signedPayload = `${effectiveWebhookId}.${effectiveTimestamp}.${payload}`;
-  const expected = createHmac("sha256", normalizeWebhookSecret(secret))
-    .update(signedPayload)
-    .digest();
+  // Polar's signing key is ambiguous in practice: Standard Webhooks decodes the base64
+  // body of a `whsec_…` secret into key bytes, but Polar has been observed signing with
+  // the *raw* secret string (the whole value, UTF-8) as the key. Accept either so a
+  // correctly-configured secret never 401s on a live delivery. Both candidates still
+  // require knowledge of the secret, so this widens compatibility, not the attack surface.
+  const expectedDigests = [normalizeWebhookSecret(secret), Buffer.from(secret, "utf8")].map((key) =>
+    createHmac("sha256", key).update(signedPayload).digest(),
+  );
 
   return parsed.signatures.some((signature) => {
     const candidate = signatureToBuffer(signature);
 
-    return candidate.length === expected.length && timingSafeEqual(candidate, expected);
+    return expectedDigests.some(
+      (expected) => candidate.length === expected.length && timingSafeEqual(candidate, expected),
+    );
   });
 }
 
