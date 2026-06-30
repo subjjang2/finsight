@@ -33,6 +33,16 @@ describe("validateCsvFile", () => {
     ).toBe(true);
   });
 
+  it("accepts a legacy .xls file when the browser reports an unrecognized content type", () => {
+    // Korean card issuers' .xls files are often reported by the browser as a
+    // generic/non-spreadsheet MIME type. The extension is authoritative.
+    expect(
+      validateCsvFile(
+        fakeFile({ name: "이용대금명세서_이용상세내역.xls", type: "application/octet-stream" }),
+      ).ok,
+    ).toBe(true);
+  });
+
   it("rejects files over the 5MB server limit", () => {
     expect(validateCsvFile(fakeFile({ size: MAX_UPLOAD_BYTES + 1 })).ok).toBe(false);
   });

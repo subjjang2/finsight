@@ -45,7 +45,11 @@ export function validateCsvFile(file: File): CsvValidation {
   const hasAllowedExtension = ALLOWED_UPLOAD_EXTENSIONS.some((ext) => name.endsWith(ext));
   const hasAllowedType = ALLOWED_UPLOAD_TYPES.has(file.type);
 
-  if (!hasAllowedExtension || !hasAllowedType) {
+  // Client-supplied `file.type` is unreliable (Korean issuers' .xls often comes
+  // through as a generic MIME type), so a supported extension is sufficient.
+  // Only reject when neither the extension nor the content type is supported —
+  // mirrors the server-side validateUploadFile in lib/csv/upload.ts.
+  if (!hasAllowedExtension && !hasAllowedType) {
     return { ok: false, message: "CSV 또는 엑셀 파일(.csv, .xlsx, .xls)만 업로드할 수 있습니다." };
   }
 
