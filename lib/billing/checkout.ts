@@ -20,7 +20,10 @@ export async function createPolarCheckoutUrl({
     throw new Error("Missing Polar checkout environment variables");
   }
 
-  const response = await fetch("https://api.polar.sh/v1/checkouts/", {
+  // Defaults to production; set POLAR_API_BASE=https://sandbox-api.polar.sh for Sandbox testing.
+  const apiBase = process.env.POLAR_API_BASE ?? "https://api.polar.sh";
+
+  const response = await fetch(`${apiBase}/v1/checkouts/`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${accessToken}`,
