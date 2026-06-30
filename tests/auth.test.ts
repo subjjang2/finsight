@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildOAuthCallbackUrl,
   getPostAuthRedirectPath,
   validateAuthCredentials,
 } from "../lib/auth/validation";
@@ -70,6 +71,26 @@ describe("auth redirect paths", () => {
   it("rejects external redirect targets", () => {
     expect(getPostAuthRedirectPath("https://example.com/phishing")).toBe(
       "/dashboard",
+    );
+  });
+});
+
+describe("buildOAuthCallbackUrl", () => {
+  it("builds a callback URL with a normalized, encoded next param", () => {
+    expect(
+      buildOAuthCallbackUrl("http://localhost:3000", "/dashboard/trend"),
+    ).toBe("http://localhost:3000/auth/callback?next=%2Fdashboard%2Ftrend");
+  });
+
+  it("forces an unsafe next back to /dashboard", () => {
+    expect(
+      buildOAuthCallbackUrl("https://app.example", "https://evil.example/phish"),
+    ).toBe("https://app.example/auth/callback?next=%2Fdashboard");
+  });
+
+  it("defaults a missing next to /dashboard", () => {
+    expect(buildOAuthCallbackUrl("https://app.example", null)).toBe(
+      "https://app.example/auth/callback?next=%2Fdashboard",
     );
   });
 });

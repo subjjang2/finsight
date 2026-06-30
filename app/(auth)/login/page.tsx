@@ -27,7 +27,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </div>
 
           <p className="text-sm text-muted-soft">
-            이메일/비밀번호 로그인만 제공합니다.
+            Google 또는 이메일/비밀번호로 로그인할 수 있습니다.
           </p>
         </section>
 

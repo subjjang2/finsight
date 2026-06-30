@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("./actions", () => ({
   authenticate: async (state: unknown) => state,
+  signInWithGoogle: async () => undefined,
 }));
 
 import { LoginForm } from "./login-form";
@@ -17,6 +18,12 @@ describe("LoginForm", () => {
     expect(markup).toContain('role="tablist"');
     expect(markup).toContain('role="tab"');
     expect(markup).toContain("aria-selected");
+  });
+
+  it("offers a Google sign-in button alongside email/password", () => {
+    expect(markup).toContain("Google로 계속하기");
+    // The Google button forwards the validated next target.
+    expect(markup).toContain('value="/dashboard"');
   });
 
   it("uses design tokens instead of raw tailwind palette classes", () => {

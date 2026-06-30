@@ -6,7 +6,10 @@ import type { NextConfig } from "next";
 const contentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
-  "form-action 'self'",
+  // OAuth sign-in posts a form whose redirect chain leaves the origin
+  // (→ Supabase /auth/v1/authorize → accounts.google.com); form-action governs
+  // the whole chain, so both hops must be allowlisted.
+  "form-action 'self' https://*.supabase.co https://accounts.google.com",
   "frame-ancestors 'none'",
   "object-src 'none'",
   "script-src 'self' 'unsafe-inline'",

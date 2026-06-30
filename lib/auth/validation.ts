@@ -46,3 +46,22 @@ export function getPostAuthRedirectPath(next: string | null): string {
 
   return next;
 }
+
+export function getPublicSiteUrl(): string {
+  return (
+    process.env.NEXT_PUBLIC_SITE_URL ??
+    process.env.SITE_URL ??
+    "http://localhost:3000"
+  );
+}
+
+// Absolute OAuth callback URL. The `next` is normalized through
+// getPostAuthRedirectPath (open-redirect guard) and URL-encoded so it survives
+// the round-trip through the OAuth provider back to /auth/callback.
+export function buildOAuthCallbackUrl(
+  siteUrl: string,
+  next: string | null,
+): string {
+  const safeNext = getPostAuthRedirectPath(next);
+  return `${siteUrl}/auth/callback?next=${encodeURIComponent(safeNext)}`;
+}

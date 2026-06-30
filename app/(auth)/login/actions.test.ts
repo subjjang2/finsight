@@ -63,6 +63,27 @@ describe("authenticate in E2E mode", () => {
   });
 });
 
+describe("signInWithGoogle in E2E mode", () => {
+  it("sets the e2e cookie and redirects to next without touching Supabase", async () => {
+    const { signInWithGoogle } = await import("./actions");
+    await expect(
+      signInWithGoogle(form({ next: "/dashboard/trend" })),
+    ).rejects.toThrow("REDIRECT:/dashboard/trend");
+    expect(cookieStore.set).toHaveBeenCalledWith(
+      "e2e_session",
+      "1",
+      expect.objectContaining({ path: "/" }),
+    );
+  });
+
+  it("normalizes an unsafe next back to /dashboard", async () => {
+    const { signInWithGoogle } = await import("./actions");
+    await expect(
+      signInWithGoogle(form({ next: "https://evil.example/phish" })),
+    ).rejects.toThrow("REDIRECT:/dashboard");
+  });
+});
+
 describe("signOut in E2E mode", () => {
   it("clears the cookie and redirects to /login", async () => {
     const { signOut } = await import("./actions");

@@ -5,7 +5,9 @@ import { redirect } from "next/navigation";
 import { createServerClient } from "../../../lib/supabase/server";
 import { E2E_COOKIE, isE2E } from "../../../lib/e2e";
 import {
+  buildOAuthCallbackUrl,
   getPostAuthRedirectPath,
+  getPublicSiteUrl,
   validateAuthCredentials,
 } from "../../../lib/auth/validation";
 
@@ -21,12 +23,34 @@ function getAuthMode(value: FormDataEntryValue | null): AuthMode {
   return value === "signup" ? "signup" : "login";
 }
 
-function getPublicSiteUrl() {
-  return (
-    process.env.NEXT_PUBLIC_SITE_URL ??
-    process.env.SITE_URL ??
-    "http://localhost:3000"
-  );
+export async function signInWithGoogle(formData: FormData) {
+  const next = getPostAuthRedirectPath(String(formData.get("next") ?? "") || null);
+
+  if (isE2E()) {
+    const cookieStore = await cookies();
+    cookieStore.set(E2E_COOKIE, "1", {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+    });
+    redirect(next);
+  }
+
+  const supabase = await createServerClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: buildOAuthCallbackUrl(getPublicSiteUrl(), next),
+    },
+  });
+
+  if (error || !data?.url) {
+    redirect("/login?error=oauth");
+  }
+
+  // data.url is the external Google consent URL; the PKCE verifier was written to
+  // cookies by signInWithOAuth above and is read back in /auth/callback.
+  redirect(data.url);
 }
 
 export async function authenticate(
