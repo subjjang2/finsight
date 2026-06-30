@@ -57,7 +57,10 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // standalone output is only needed for the production container (Railway).
+  // Enabling it in `next dev` breaks App Router + middleware with
+  // ENOENT routes-manifest.json, so scope it to production builds only.
+  output: process.env.NODE_ENV === "production" ? "standalone" : undefined,
   async headers() {
     return [
       {
