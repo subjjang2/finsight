@@ -95,6 +95,16 @@
 - 하위(파일 내부, 비공개): `MappingReview`(매핑 표 + 신뢰도 % + 미리보기), `PreviewTable`(원본 샘플 표).
 - 타입: `types/mapping.ts`의 `ColumnMapping`, `MappingField`.
 
+### `CategoryDonut` (`CategoryDonut.tsx`)
+카테고리별 지출을 **도넛 차트 + 범례**로 표현하는 무상태 프레젠테이션 컴포넌트. 인사이트 화면의 "카테고리별 지출" 카드 본문.
+- props: `rows: { id: Category; amount: number; count?: number }[]`(금액 내림차순 정렬 전제), `total: number`.
+- 좌측 인라인 SVG 도넛(size 168, stroke 14, `-rotate-90`으로 12시 시작) + 중앙 "총 지출" 금액, 우측 범례(색 스와치·라벨·비율·금액).
+- 색은 `emeraldScale(i, n)` 순차 스케일 — i=0이 가장 밝은 emerald, 순위가 낮을수록 중성 회색으로 페이드. 배경 트랙은 `var(--surface-3)`. (도구형 톤 유지, 임의 다색 팔레트 금지.)
+- 같이 export하는 순수 함수(테스트 대상):
+  - `emeraldScale(i, n): string` — OKLCH 색 문자열(반올림으로 안정적).
+  - `donutSegments(rows, total, size): DonutSegment[]` — arc 기하(dash 길이·offset). `total <= 0`이거나 `amount <= 0`인 행은 제외.
+- 금액 `₩`+`tabular-nums`, 비율은 `pct()`(소수 1자리). amount가 0 이하인 카테고리는 도넛·범례 모두에서 생략.
+
 ---
 
 ## 추가 시 규칙

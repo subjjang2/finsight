@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CategoryDonut } from "../../components/dashboard/CategoryDonut";
 import { Card, EmptyState, ErrorState, Stat } from "../../components/ui";
 import { categoryLabel, isCategory } from "../../lib/categories";
 import { asNumber, pct, won, yyyyMmDd } from "../../lib/format";
@@ -21,13 +22,6 @@ type InsightRow = {
 type UploadRow = {
   file_name: string | null;
   row_count: number | null;
-};
-
-type TransactionRow = {
-  tx_date: string | null;
-  merchant: string | null;
-  amount: number | string | null;
-  category: string;
 };
 
 export default async function DashboardPage() {
@@ -66,26 +60,12 @@ export default async function DashboardPage() {
     );
   }
 
-  const [{ data: upload }, { data: transactions, error: txError }] = await Promise.all([
-    supabase
-      .from("uploads")
-      .select("file_name, row_count")
-      .eq("id", latestInsight.upload_id)
-      .eq("user_id", user.id)
-      .maybeSingle<UploadRow>(),
-    supabase
-      .from("transactions")
-      .select("tx_date, merchant, amount, category")
-      .eq("upload_id", latestInsight.upload_id)
-      .eq("user_id", user.id)
-      .order("tx_date", { ascending: false })
-      .limit(8)
-      .returns<TransactionRow[]>(),
-  ]);
-
-  if (txError) {
-    return <ErrorState title="거래 내역을 불러오지 못했습니다" message={txError.message} />;
-  }
+  const { data: upload } = await supabase
+    .from("uploads")
+    .select("file_name, row_count")
+    .eq("id", latestInsight.upload_id)
+    .eq("user_id", user.id)
+    .maybeSingle<UploadRow>();
 
   const total = asNumber(latestInsight.total);
   const breakdown = parseBreakdown(latestInsight.breakdown).sort((a, b) => b.amount - a.amount);
@@ -125,65 +105,12 @@ export default async function DashboardPage() {
           <p className="mt-2 text-sm text-muted">고정 12개 카테고리 기준 합계와 비율입니다.</p>
         </div>
         {breakdown.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
-              <thead className="text-xs text-muted">
-                <tr className="border-b border-line">
-                  <th className="px-6 py-3 text-left font-medium">카테고리</th>
-                  <th className="px-6 py-3 text-left font-medium">비율</th>
-                  <th className="px-6 py-3 text-right font-medium">건수</th>
-                  <th className="px-6 py-3 text-right font-medium">금액</th>
-                </tr>
-              </thead>
-              <tbody>
-                {breakdown.map((row) => (
-                  <tr className="border-b border-line last:border-b-0" key={row.id}>
-                    <td className="px-6 py-4 font-medium text-ink">{categoryLabel(row.id)}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="h-2 flex-1 overflow-hidden rounded-lg bg-surface-3">
-                          <div className="h-full rounded-lg bg-accent" style={{ width: pct(row.amount, total) }} />
-                        </div>
-                        <span className="w-14 text-right text-xs tabular-nums text-muted">{pct(row.amount, total)}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right tabular-nums text-muted">{row.count}</td>
-                    <td className="px-6 py-4 text-right tabular-nums text-ink">{won(row.amount)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="p-6">
+            <CategoryDonut rows={breakdown} total={total} />
           </div>
         ) : (
           <div className="p-6">
             <EmptyState title="분류된 카테고리가 없습니다" message="분석 결과에 집계 가능한 거래가 없습니다." />
-          </div>
-        )}
-      </Card>
-
-      <Card className="p-0">
-        <div className="border-b border-line p-6">
-          <h2 className="text-lg font-semibold text-ink">최근 거래</h2>
-          <p className="mt-2 text-sm text-muted">최신 분석에 포함된 거래 일부입니다.</p>
-        </div>
-        {transactions && transactions.length > 0 ? (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
-              <tbody>
-                {transactions.map((tx, index) => (
-                  <tr className="border-b border-line last:border-b-0" key={`${tx.tx_date}-${tx.merchant}-${index}`}>
-                    <td className="px-6 py-3 tabular-nums text-muted">{yyyyMmDd(tx.tx_date)}</td>
-                    <td className="px-6 py-3 text-ink">{tx.merchant ?? "-"}</td>
-                    <td className="px-6 py-3 text-muted">{isCategory(tx.category) ? categoryLabel(tx.category) : tx.category}</td>
-                    <td className="px-6 py-3 text-right tabular-nums text-ink">{won(tx.amount)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="p-6">
-            <EmptyState title="표시할 거래가 없습니다" message="최신 인사이트는 있지만 거래 목록이 비어 있습니다." />
           </div>
         )}
       </Card>
