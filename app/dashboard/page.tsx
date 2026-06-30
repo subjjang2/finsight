@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CategoryDonut } from "../../components/dashboard/CategoryDonut";
+import { ProAnalysisPanel } from "../../components/dashboard/ProAnalysisPanel";
 import { Card, EmptyState, ErrorState, Stat } from "../../components/ui";
 import { categoryLabel, isCategory } from "../../lib/categories";
 import { asNumber, pct, won, yyyyMmDd } from "../../lib/format";
@@ -16,6 +17,7 @@ type InsightRow = {
   tx_count: number | null;
   breakdown: unknown;
   summary: string | null;
+  advice: string | null;
   created_at: string;
 };
 
@@ -36,7 +38,7 @@ export default async function DashboardPage() {
 
   const { data: latestInsight, error: insightError } = await supabase
     .from("insights")
-    .select("id, upload_id, total, tx_count, breakdown, summary, created_at")
+    .select("id, upload_id, total, tx_count, breakdown, summary, advice, created_at")
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -66,6 +68,13 @@ export default async function DashboardPage() {
     .eq("id", latestInsight.upload_id)
     .eq("user_id", user.id)
     .maybeSingle<UploadRow>();
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("tier")
+    .eq("id", user.id)
+    .maybeSingle<{ tier: string | null }>();
+  const plan = profile?.tier === "pro" ? "pro" : "free";
 
   const total = asNumber(latestInsight.total);
   const breakdown = parseBreakdown(latestInsight.breakdown).sort((a, b) => b.amount - a.amount);
@@ -99,21 +108,29 @@ export default async function DashboardPage() {
         </p>
       </Card>
 
-      <Card className="p-0">
-        <div className="border-b border-line p-6">
-          <h2 className="text-lg font-semibold text-ink">카테고리별 지출</h2>
-          <p className="mt-2 text-sm text-muted">고정 12개 카테고리 기준 합계와 비율입니다.</p>
-        </div>
-        {breakdown.length > 0 ? (
-          <div className="p-6">
-            <CategoryDonut rows={breakdown} total={total} />
+      <div className="grid gap-4 lg:grid-cols-[1.7fr_1fr]">
+        <Card className="p-0">
+          <div className="border-b border-line p-6">
+            <h2 className="text-lg font-semibold text-ink">카테고리별 지출</h2>
+            <p className="mt-2 text-sm text-muted">고정 12개 카테고리 기준 합계와 비율입니다.</p>
           </div>
-        ) : (
-          <div className="p-6">
-            <EmptyState title="분류된 카테고리가 없습니다" message="분석 결과에 집계 가능한 거래가 없습니다." />
-          </div>
-        )}
-      </Card>
+          {breakdown.length > 0 ? (
+            <div className="p-6">
+              <CategoryDonut rows={breakdown} total={total} />
+            </div>
+          ) : (
+            <div className="p-6">
+              <EmptyState title="분류된 카테고리가 없습니다" message="분석 결과에 집계 가능한 거래가 없습니다." />
+            </div>
+          )}
+        </Card>
+
+        <ProAnalysisPanel
+          plan={plan}
+          initialAdvice={plan === "pro" ? latestInsight.advice : null}
+          hasInsight={breakdown.length > 0}
+        />
+      </div>
     </div>
   );
 }

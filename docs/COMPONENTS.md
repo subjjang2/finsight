@@ -105,6 +105,17 @@
   - `donutSegments(rows, total, size): DonutSegment[]` — arc 기하(dash 길이·offset). `total <= 0`이거나 `amount <= 0`인 행은 제외.
 - 금액 `₩`+`tabular-nums`, 비율은 `pct()`(소수 1자리). amount가 0 이하인 카테고리는 도넛·범례 모두에서 생략.
 
+### `ProAnalysisPanel` (`ProAnalysisPanel.tsx`, `"use client"`)
+카테고리 도넛 **오른쪽**에 붙는 Pro 전용 분석 패널. 인사이트 화면 도넛과 2열(`lg:grid-cols-[1.7fr_1fr]`) 배치.
+- props: `plan: "free" | "pro"`, `initialAdvice: string | null`(캐시된 조언), `hasInsight: boolean`.
+- 3가지 뷰(순수 함수 `proAnalysisInitialView(plan, initialAdvice)`로 결정, 테스트 대상):
+  - `locked`(Free) — 자물쇠 아이콘 + 잠금 안내 + `Pro로 업그레이드`(accent) 버튼. 클릭 시 `POST /api/polar/checkout`(Accept: application/json)로 `{ url }`을 받아 Polar 체크아웃으로 이동. "Polar가 결제와 세금 처리를 담당합니다." 보조문구.
+  - `idle`(Pro·캐시 없음) — `분석 생성하기`(accent) 버튼. `hasInsight=false`면 비활성 + 안내.
+  - `result`(Pro·조언 있음) — 조언 본문(`whitespace-pre-wrap`) + `다시 생성`(text) 버튼.
+- 생성/재생성은 `POST /api/advice`(`{ regenerate }`) 호출. 호출 중에는 **인디터미닛 프로그래스 바**(`AnalyzingBar`, `@keyframes indeterminate-bar`는 `globals.css`) 표시. 실패 시 인라인 `text-error` 메시지.
+- 비용: advice 호출은 명세서당 1회만 일어나도록 결과를 `insights.advice`에 캐시(`/api/advice`가 관리). "다시 생성"으로만 재호출.
+- 같이 export: `proAnalysisInitialView`, 타입 `ProAnalysisView = "locked" | "idle" | "result"`.
+
 ---
 
 ## 추가 시 규칙

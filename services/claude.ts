@@ -42,6 +42,15 @@ const classificationSchema = {
   },
 } as const;
 
+const adviceSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["advice"],
+  properties: {
+    advice: { type: "string" },
+  },
+} as const;
+
 interface ParsedMessage<T> {
   parsed_output?: T;
   content?: Array<{ type: string; text?: string }>;
@@ -146,6 +155,59 @@ export async function classifyTransactions(
       category: typeof category === "string" && isCategory(category) ? category : "etc",
     };
   });
+}
+
+export interface SpendingAdviceInput {
+  total: number;
+  count: number;
+  breakdown: { category: string; amount: number; count: number }[];
+  summary?: string | null;
+}
+
+export async function generateSpendingAdvice(input: SpendingAdviceInput): Promise<string> {
+  const response = await getClient().messages.parse({
+    model: MODEL,
+    max_tokens: 1024,
+    system:
+      "You are a Korean personal-finance assistant. Given a card-statement spending summary " +
+      "(total, transaction count, per-category amounts, and a short summary), write concise, " +
+      "practical advice in Korean (한국어). Diagnose the spending pattern in 1-2 sentences, then " +
+      "give 2-4 specific, actionable tips. Reference only the provided categories; never invent new ones. " +
+      "Keep it under ~250 Korean words, plain text with line breaks (no markdown headings). " +
+      INJECTION_BOUNDARY,
+    messages: [
+      {
+        role: "user",
+        content: JSON.stringify(input),
+      },
+    ],
+    output_config: {
+      format: {
+        type: "json_schema",
+        schema: adviceSchema,
+      },
+    },
+  });
+
+  const parsed = readStructuredObject(response);
+  const advice = typeof parsed.advice === "string" ? parsed.advice.trim() : "";
+
+  if (advice === "") {
+    throw new Error("Claude returned an empty advice response.");
+  }
+
+  return advice;
+}
+
+function readStructuredObject(response: unknown): Record<string, unknown> {
+  const message = response as ParsedMessage<unknown>;
+  const raw = message.parsed_output !== undefined ? message.parsed_output : parseTextOutput(message);
+
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error("Claude response was not a JSON object.");
+  }
+
+  return raw as Record<string, unknown>;
 }
 
 function readStructuredArray(response: unknown): Record<string, unknown>[] {

@@ -57,3 +57,13 @@ a {
   color: inherit;
   text-decoration: none;
 }
+
+/* Pro 분석 로딩 인디터미닛 프로그래스 바 (ProAnalysisPanel). */
+@keyframes indeterminate-bar {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(360%);
+  }
+}
