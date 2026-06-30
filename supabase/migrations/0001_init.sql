@@ -230,8 +230,10 @@ values ('card-statements', 'card-statements', false)
 on conflict (id) do update
 set public = excluded.public;
 
-alter table storage.objects enable row level security;
-
+-- storage.objects already has RLS enabled by Supabase; `alter table ... enable
+-- row level security` here fails with "must be owner of table objects" on hosted
+-- projects and aborts the migration, so we only declare the policies.
+drop policy if exists "card_statements_select_own" on storage.objects;
 create policy "card_statements_select_own"
   on storage.objects
   for select
@@ -241,6 +243,7 @@ create policy "card_statements_select_own"
     and auth.uid()::text = (storage.foldername(name))[1]
   );
 
+drop policy if exists "card_statements_insert_own" on storage.objects;
 create policy "card_statements_insert_own"
   on storage.objects
   for insert
