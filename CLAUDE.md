@@ -37,6 +37,9 @@ npm run test     # 테스트 (Vitest)
 ANTHROPIC_API_KEY                # 서버 전용
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
+NEXT_PUBLIC_SITE_URL             # 절대 URL(OAuth 콜백·Polar 체크아웃 URL 빌드). 로컬 http://localhost:3000
 SUPABASE_SERVICE_ROLE_KEY        # 서버 전용
 POLAR_ACCESS_TOKEN               # 서버 전용
+POLAR_PRO_PRODUCT_ID             # 서버 전용, Pro 체크아웃 대상 상품
 POLAR_WEBHOOK_SECRET             # 서버 전용
+# POLAR_API_BASE                 # optional, sandbox 테스트 시에만. 기본값 https://api.polar.sh

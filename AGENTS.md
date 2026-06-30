@@ -18,7 +18,7 @@
 - CRITICAL: 클라이언트 컴포넌트/번들에 비밀 키를 노출하지 않는다. `ANTHROPIC_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `POLAR_*`는 서버 전용. 클라이언트엔 `NEXT_PUBLIC_*`만.
 - CRITICAL: 금융 PII가 담긴 테이블(transactions 등)은 RLS를 강제해 소유자만 접근하게 한다. RLS 없는 PII 테이블 생성 금지.
 - 거래 분류는 고정 카테고리 enum(10~12개)만 사용한다. AI가 임의 카테고리를 생성하지 않게 한다.
-- AI 컬럼 매핑 결과는 사용자가 확인·수정하는 단계를 반드시 거친 뒤 분석한다.
+- 업로드 시 AI 컬럼 매핑 추정값으로 분석을 자동 실행한다(매핑 확인 단계 없음, `docs/UX_GUIDE.md` §3 정본). 매핑 실패 시 파일 선택 화면으로 복귀한다.
 - 컴포넌트는 `components/`, 타입은 `types/`, 외부 API 래퍼는 `services/`, 유틸은 `lib/`에 분리한다.
 - UI는 한국어. `docs/UI_GUIDE.md`의 AI-슬롭 안티패턴을 위반하지 않는다.
 
@@ -37,6 +37,9 @@ npm run test     # 테스트
 ANTHROPIC_API_KEY                # 서버 전용
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
+NEXT_PUBLIC_SITE_URL             # 절대 URL(OAuth 콜백·Polar 체크아웃 URL 빌드). 로컬 http://localhost:3000
 SUPABASE_SERVICE_ROLE_KEY        # 서버 전용
 POLAR_ACCESS_TOKEN               # 서버 전용
+POLAR_PRO_PRODUCT_ID             # 서버 전용, Pro 체크아웃 대상 상품
 POLAR_WEBHOOK_SECRET             # 서버 전용
+# POLAR_API_BASE                 # optional, sandbox 테스트 시에만. 기본값 https://api.polar.sh

@@ -22,7 +22,7 @@
 - props: 표준 `button` 속성 + `variant?: "primary" | "accent" | "text"` (기본 `primary`), `type` 기본 `"button"`.
 - variant:
   - `primary` — 흰 배경 검정 글씨 (`bg-white text-black`). 화면의 기본 확정 액션.
-  - `accent` — emerald (`bg-accent text-black`). **다음 단계로 가는 단 하나의 버튼**에만 (UX_GUIDE 대비 원칙). 예: 매핑 화면 "분석 실행".
+  - `accent` — emerald (`bg-accent text-black`). **다음 단계로 가는 단 하나의 버튼**에만 (UX_GUIDE 대비 원칙). 예: 빈 상태 "명세서 업로드", 요금제 "Pro 시작".
   - `text` — 무배경 보조 액션 (`text-muted`, 패딩 0). 예: "다시 선택", "다른 파일".
 - `disabled` 시 `opacity-50 cursor-not-allowed` 자동.
 - 한 화면에 accent 버튼은 1개 원칙(UX_GUIDE §3).
@@ -83,16 +83,14 @@
 ## dashboard/ — 기능 컴포넌트 (`components/dashboard/`)
 
 ### `UploadFlow` (`UploadFlow.tsx`, `"use client"`)
-업로드 → 매핑 확인 → 분석 → 완료의 **4단계 클라이언트 플로우**. UX_GUIDE 단계 2~5의 구현.
+업로드 → 분석 → 완료의 **무확인 자동 플로우**. UX_GUIDE 단계 2~5의 구현(§3은 매핑 확인 없이 자동 분석).
 - props: `used: number`, `limit: number`.
-- 내부 상태: `Stage = "select" | "mapping" | "analyzing" | "done"`.
-- API: `POST /api/uploads`(매핑 추정) → `POST /api/analyses`(분석). 완료 시 `/dashboard`로 push + refresh.
+- 내부 상태: `Stage = "select" | "analyzing" | "done"`(별도 매핑 확인 단계 없음).
+- API: `POST /api/uploads`(매핑 추정) → 곧바로 `POST /api/analyses`(분석). 완료 시 `/dashboard`로 push + refresh.
 - 핵심 UX 규칙 반영:
-  - 파일 선택 즉시 자동 업로드·매핑 진입(자동 전진, UX_GUIDE §3.2).
-  - 매핑은 AI 추정값을 **미리 채운 상태**로 보여주고 사용자가 확인/수정(CLAUDE.md 필수 단계).
-  - `REQUIRED_FIELDS = date/merchant/amount` 모두 매핑돼야 "분석 실행"(accent) 활성.
-  - 에러는 처음으로 되돌리지 않고 같은 단계에서 복구(`mapping`/`select` 유지).
-- 하위(파일 내부, 비공개): `MappingReview`(매핑 표 + 신뢰도 % + 미리보기), `PreviewTable`(원본 샘플 표).
+  - 파일 선택 즉시 자동 업로드 → AI 매핑 추정값으로 **확인 단계 없이 곧장 분석 실행**(UX_GUIDE §3).
+  - 업로드/매핑 중에는 로딩 표시("CSV를 읽고 컬럼을 매핑하는 중")로 대기 이탈 방지.
+  - 에러는 처음으로 되돌리지 않고 파일 선택(`select`) 화면에서 복구.
 - 타입: `types/mapping.ts`의 `ColumnMapping`, `MappingField`.
 
 ### `CategoryDonut` (`CategoryDonut.tsx`)
