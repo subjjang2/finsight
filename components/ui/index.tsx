@@ -154,7 +154,7 @@ function StateIcon({ kind }: { kind: "loading" | "error" | "empty" | "success" }
     return (
       <svg
         aria-hidden="true"
-        className="h-5 w-5 text-accent"
+        className="h-5 w-5 animate-spin text-accent"
         fill="none"
         stroke="currentColor"
         strokeLinecap="round"

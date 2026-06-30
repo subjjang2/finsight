@@ -1,7 +1,8 @@
-// S8: 업로드 → AI 컬럼 매핑(실제 Sonnet) → 분석 실행(실제 Sonnet) → 인사이트 (인증 + Claude 과금)
+// S8: 업로드 → 자동 매핑(실제 Sonnet) → 자동 분석(실제 Sonnet) → 인사이트 (인증 + Claude 과금)
+// 매핑 확인 화면은 제거됨: 파일 주입 즉시 매핑 추정 → 분석이 자동으로 이어지고 /dashboard로 이동한다.
 // ⚠️ 인증 정책 + 유료 호출: 실행 전 (1) 우회 vs 정식 인증, (2) Claude 유료 호출(매핑 1 + 분류 1) 사전 승인 필수.
 //    유효한 ANTHROPIC_API_KEY 필요.
-// 실행: dev-browser --headless --timeout 150 run tests/e2e/s8_upload_analyze.js
+// 실행: dev-browser --headless --timeout 200 run tests/e2e/s8_upload_analyze.js
 const CSV_TEXT = [
   "거래일자,가맹점,이용금액,승인번호",
   "2026-06-01,스타벅스 강남,5800,00012345",
@@ -51,29 +52,16 @@ await page.locator('input[type="file"]').setInputFiles({
   buffer: csvBytes,
 });
 
-// 3) 매핑 단계 대기 (실제 Sonnet mapColumns 호출)
-await page.getByText("AI 컬럼 매핑 확인").waitFor({ timeout: 60000 });
-out.reachedMapping = true;
+// 3) 자동 로딩 단계 대기 (실제 Sonnet mapColumns 호출 중)
+out.reachedLoading = await page
+  .getByText("CSV를 읽고 컬럼을 매핑하는 중입니다.")
+  .waitFor({ timeout: 60000 })
+  .then(() => true)
+  .catch(() => false);
+await saveScreenshot(await page.screenshot(), "s8_loading.png");
 
-// 4) Sonnet 매핑 결과 읽기
-out.aiMapping = {};
-for (const src of ["거래일자", "가맹점", "이용금액", "승인번호"]) {
-  const sel = page.locator(`select[aria-label="${src} 매핑 필드"]`);
-  if ((await sel.count()) > 0) out.aiMapping[src] = await sel.inputValue();
-}
-
-// 5) 필수 필드 보장
-await page.locator('select[aria-label="거래일자 매핑 필드"]').selectOption("date").catch(() => {});
-await page.locator('select[aria-label="가맹점 매핑 필드"]').selectOption("merchant").catch(() => {});
-await page.locator('select[aria-label="이용금액 매핑 필드"]').selectOption("amount").catch(() => {});
-await page.waitForTimeout(300);
-await saveScreenshot(await page.screenshot(), "s8_mapping.png");
-
-// 6) 분석 실행 (실제 Sonnet classifyTransactions 호출) → /dashboard
-await Promise.all([
-  page.waitForURL("**/dashboard", { timeout: 90000 }).catch(() => {}),
-  page.getByRole("button", { name: "분석 실행" }).click(),
-]);
+// 4) 매핑 추정 → 분석(실제 Sonnet classifyTransactions)이 자동으로 이어지고 /dashboard로 이동
+await page.waitForURL("**/dashboard", { timeout: 150000 }).catch(() => {});
 await page.waitForTimeout(1500);
 out.urlAfterAnalyze = page.url();
 
@@ -85,10 +73,9 @@ out.errorShown = (await page.getByText("요청 실패").count().catch(() => 0)) 
 await saveScreenshot(await page.screenshot(), "s8_insight.png");
 
 out.pass =
-  out.reachedMapping &&
   /\/dashboard$/.test(out.urlAfterAnalyze) &&
   out.hasTotalStat &&
   out.hasBreakdown &&
   !out.errorShown;
 
-console.log(JSON.stringify({ scenario: "S8 upload->mapping->analysis (real Sonnet)", ...out }, null, 2));
+console.log(JSON.stringify({ scenario: "S8 upload->auto-analysis (real Sonnet)", ...out }, null, 2));

@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Badge, Button, Card, EmptyState, ErrorState, LoadingState, Select, SuccessState } from "../ui";
-import type { ColumnMapping, MappingField } from "../../types/mapping";
+import { Badge, Button, Card, EmptyState, ErrorState, LoadingState, SuccessState } from "../ui";
+import type { ColumnMapping } from "../../types/mapping";
 
 type UploadResponse = {
   uploadId: string;
@@ -14,16 +14,7 @@ type UploadResponse = {
   mapping: ColumnMapping[];
 };
 
-type Stage = "select" | "mapping" | "analyzing" | "done";
-
-const FIELD_OPTIONS: Array<{ value: MappingField; label: string }> = [
-  { value: "date", label: "날짜" },
-  { value: "merchant", label: "가맹점명" },
-  { value: "amount", label: "금액" },
-  { value: "ignore", label: "무시" },
-];
-
-const REQUIRED_FIELDS: MappingField[] = ["date", "merchant", "amount"];
+type Stage = "select" | "analyzing" | "done";
 
 // Mirrors the server-side 5MB cap so the user gets immediate feedback.
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
@@ -76,15 +67,8 @@ export function UploadFlow({
   const [file, setFile] = useState<File | null>(null);
   const [stage, setStage] = useState<Stage>("select");
   const [upload, setUpload] = useState<UploadResponse | null>(null);
-  const [mapping, setMapping] = useState<ColumnMapping[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-
-  const missingFields = useMemo(
-    () => REQUIRED_FIELDS.filter((field) => !mapping.some((item) => item.field === field)),
-    [mapping],
-  );
-  const canAnalyze = missingFields.length === 0 && stage === "mapping";
 
   async function uploadFile(nextFile: File) {
     setFile(nextFile);
@@ -105,22 +89,24 @@ export function UploadFlow({
         throw new Error(payload.error ?? "업로드에 실패했습니다.");
       }
 
-      setUpload(payload as UploadResponse);
-      setMapping((payload as UploadResponse).mapping);
-      setStage("mapping");
+      const uploadResponse = payload as UploadResponse;
+      setUpload(uploadResponse);
+      // End the upload/mapping phase before the analysis phase so the two
+      // loading screens never render at the same time.
+      setIsUploading(false);
+
+      // No manual mapping-confirm step: analyze immediately with the AI-inferred
+      // mapping. runAnalysis handles its own errors, so it won't reach the catch
+      // below (that path is for upload failures only).
+      await runAnalysis(uploadResponse);
     } catch (caught) {
       setStage("select");
       setError(caught instanceof Error ? caught.message : "업로드에 실패했습니다.");
-    } finally {
       setIsUploading(false);
     }
   }
 
-  async function analyze() {
-    if (!upload || !canAnalyze) {
-      return;
-    }
-
+  async function runAnalysis(uploadResponse: UploadResponse) {
     setError(null);
     setStage("analyzing");
 
@@ -131,8 +117,8 @@ export function UploadFlow({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          uploadId: upload.uploadId,
-          mapping,
+          uploadId: uploadResponse.uploadId,
+          mapping: uploadResponse.mapping,
         }),
       });
       const payload = await response.json();
@@ -145,15 +131,11 @@ export function UploadFlow({
       router.refresh();
       router.push("/dashboard");
     } catch (caught) {
-      setStage("mapping");
+      // No mapping screen to fall back to — return to file select so the user
+      // can try a different file.
+      setStage("select");
       setError(caught instanceof Error ? caught.message : "분석에 실패했습니다.");
     }
-  }
-
-  function updateField(index: number, field: MappingField) {
-    setMapping((current) =>
-      current.map((item, itemIndex) => (itemIndex === index ? { ...item, field } : item)),
-    );
   }
 
   return (
@@ -162,7 +144,7 @@ export function UploadFlow({
         <div>
           <h1 className="text-4xl font-semibold text-ink">명세서 업로드</h1>
           <p className="mt-3 text-sm leading-relaxed text-muted">
-            CSV 또는 엑셀을 올리면 먼저 컬럼 매핑을 확인한 뒤 분석을 시작합니다.
+            CSV 또는 엑셀을 올리면 바로 분석을 시작합니다.
           </p>
         </div>
         <Badge className="tabular-nums">이번 달 {used}/{limit}건</Badge>
@@ -179,6 +161,10 @@ export function UploadFlow({
             className="hidden"
             onChange={(event) => {
               const nextFile = event.target.files?.[0];
+
+              // Clear the input so re-selecting the SAME file after an error still
+              // fires onChange (browsers skip the event when the value is unchanged).
+              event.target.value = "";
 
               if (!nextFile) {
                 return;
@@ -217,7 +203,7 @@ export function UploadFlow({
             </svg>
             <span className="text-base font-semibold text-ink">CSV·엑셀 파일 선택</span>
             <span className="mt-2 max-w-md text-sm leading-relaxed text-muted">
-              카드사 원본 CSV 또는 엑셀(.xlsx, .xls)을 그대로 선택하세요. 업로드 후 분석 전에 날짜, 가맹점, 금액 컬럼을 직접 확인합니다.
+              카드사 원본 CSV 또는 엑셀(.xlsx, .xls)을 그대로 선택하세요. 올리면 자동으로 컬럼을 매핑해 분석을 시작합니다.
             </span>
           </button>
           {file ? (
@@ -235,23 +221,7 @@ export function UploadFlow({
       ) : null}
 
       {stage === "select" && !file && !isUploading ? (
-        <EmptyState title="아직 선택한 파일이 없습니다" message="CSV 또는 엑셀 파일을 선택하면 매핑 확인 단계가 표시됩니다." />
-      ) : null}
-
-      {stage === "mapping" && upload ? (
-        <MappingReview
-          canAnalyze={canAnalyze}
-          mapping={mapping}
-          missingFields={missingFields}
-          onAnalyze={() => void analyze()}
-          onBack={() => {
-            setUpload(null);
-            setMapping([]);
-            setStage("select");
-          }}
-          onFieldChange={updateField}
-          upload={upload}
-        />
+        <EmptyState title="아직 선택한 파일이 없습니다" message="CSV 또는 엑셀 파일을 선택하면 자동으로 분석이 시작됩니다." />
       ) : null}
 
       {stage === "analyzing" ? (
@@ -266,127 +236,5 @@ export function UploadFlow({
         </Card>
       ) : null}
     </div>
-  );
-}
-
-function MappingReview({
-  upload,
-  mapping,
-  missingFields,
-  canAnalyze,
-  onFieldChange,
-  onAnalyze,
-  onBack,
-}: {
-  upload: UploadResponse;
-  mapping: ColumnMapping[];
-  missingFields: MappingField[];
-  canAnalyze: boolean;
-  onFieldChange: (index: number, field: MappingField) => void;
-  onAnalyze: () => void;
-  onBack: () => void;
-}) {
-  return (
-    <div className="space-y-6">
-      <Card className="p-0">
-        <div className="flex items-start justify-between gap-4 border-b border-line p-6">
-          <div>
-            <h2 className="text-lg font-semibold text-ink">AI 컬럼 매핑 확인</h2>
-            <p className="mt-2 text-sm leading-relaxed text-muted">
-              {upload.fileName} · {upload.rowCount.toLocaleString("ko-KR")}행. 필드가 맞지 않으면 직접 수정한 뒤 분석하세요.
-            </p>
-          </div>
-          <Button onClick={onBack} variant="text">
-            다시 선택
-          </Button>
-        </div>
-
-        <div className="overflow-x-auto">
-          <div className="min-w-[760px]">
-            <div className="grid grid-cols-[1.1fr_1.4fr_180px_110px] border-b border-line px-6 py-3 text-xs font-medium text-muted">
-              <span>원본 컬럼</span>
-              <span>샘플 값</span>
-              <span>매핑 필드</span>
-              <span className="text-right">신뢰도</span>
-            </div>
-            {mapping.map((item, index) => (
-              <div
-                className="grid grid-cols-[1.1fr_1.4fr_180px_110px] items-center border-b border-line px-6 py-3 last:border-b-0"
-                key={item.source}
-              >
-                <span className="text-sm font-medium text-ink">{item.source}</span>
-                <span className="truncate pr-4 text-sm tabular-nums text-muted">{item.sample || "-"}</span>
-                <Select
-                  aria-label={`${item.source} 매핑 필드`}
-                  onChange={(event) => onFieldChange(index, event.target.value as MappingField)}
-                  value={item.field}
-                >
-                  {FIELD_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </Select>
-                <span className="text-right text-sm tabular-nums text-muted">
-                  {Math.round(item.confidence * 100)}%
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Card>
-
-      <PreviewTable headers={upload.headers} rows={upload.sampleRows} />
-
-      <div className="flex items-center justify-between gap-4">
-        <p className="text-sm text-muted">
-          {missingFields.length > 0
-            ? `필수 필드가 빠졌습니다: ${missingFields.join(", ")}`
-            : "필수 필드가 모두 매핑되었습니다."}
-        </p>
-        <Button disabled={!canAnalyze} onClick={onAnalyze} variant="accent">
-          분석 실행
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function PreviewTable({ headers, rows }: { headers: string[]; rows: string[][] }) {
-  if (rows.length === 0) {
-    return <EmptyState title="미리보기 행이 없습니다" message="CSV 헤더는 읽었지만 샘플 거래 행이 없습니다." />;
-  }
-
-  return (
-    <Card className="p-0">
-      <div className="border-b border-line p-6">
-        <h2 className="text-lg font-semibold text-ink">원본 샘플</h2>
-        <p className="mt-2 text-sm text-muted">업로드된 CSV 앞부분을 그대로 표시합니다.</p>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-left text-sm">
-          <thead className="text-xs text-muted">
-            <tr className="border-b border-line">
-              {headers.map((header) => (
-                <th className="px-4 py-3 font-medium" key={header}>
-                  {header}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, rowIndex) => (
-              <tr className="border-b border-line last:border-b-0" key={rowIndex}>
-                {headers.map((header, index) => (
-                  <td className="max-w-48 truncate px-4 py-3 text-muted" key={`${header}-${index}`}>
-                    {row[index] || "-"}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Card>
   );
 }

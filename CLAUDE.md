@@ -16,7 +16,6 @@
 - CRITICAL: 클라이언트 컴포넌트/번들에 비밀 키를 노출하지 않는다. `ANTHROPIC_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `POLAR_*`는 서버 전용. 클라이언트엔 `NEXT_PUBLIC_*`만.
 - CRITICAL: 금융 PII가 담긴 테이블(transactions 등)은 RLS를 강제해 소유자만 접근하게 한다. RLS 없는 PII 테이블 생성 금지.
 - 거래 분류는 고정 카테고리 enum(10~12개)만 사용한다. AI가 임의 카테고리를 생성하지 않게 한다.
-- AI 컬럼 매핑 결과는 사용자가 확인·수정하는 단계를 반드시 거친 뒤 분석한다.
 - 컴포넌트는 `components/`, 타입은 `types/`, 외부 API 래퍼는 `services/`, 유틸은 `lib/`에 분리한다.
 - UI는 한국어. 시각 규칙은 `docs/UI_GUIDE.md`(색·타이포·컴포넌트, AI-슬롭 안티패턴), 화면 흐름·온보딩·단계 전환은 `docs/UX_GUIDE.md`(퍼널), 재사용 컴포넌트 목록은 `docs/COMPONENTS.md`를 정본으로 따른다.
 
