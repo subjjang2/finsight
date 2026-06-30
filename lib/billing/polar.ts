@@ -67,8 +67,15 @@ export function getPolarTierUpdate(
 }
 
 // Pulls the subscription's monotonic ordering key from a webhook event so that
-// out-of-order / re-delivered events can be ignored. Prefers `modified_at`, then
-// `current_period_end`.
+// out-of-order / re-delivered events can be ignored. Uses ONLY `modified_at`, which
+// advances on every subscription change.
+//
+// It must NOT fall back to `current_period_end`: that is a FUTURE timestamp (the end of
+// the paid period). Storing it as the ordering key makes every later event — including
+// the cancel/revoke that demotes the user, whose `modified_at` is "now" — look strictly
+// older, so the DB ordering guard silently drops the demotion and the user stays pro
+// forever. A missing `modified_at` returns null, which the guard treats as "apply"
+// (and coalesce keeps the previously stored key).
 export function getEventModifiedAt(event: unknown): string | null {
   if (!event || typeof event !== "object") {
     return null;
@@ -82,7 +89,7 @@ export function getEventModifiedAt(event: unknown): string | null {
 
   const record = data as Record<string, unknown>;
 
-  return stringValue(record.modified_at) ?? stringValue(record.current_period_end);
+  return stringValue(record.modified_at);
 }
 
 // Monotonic guard: returns true when an incoming event should be applied over what
@@ -203,9 +210,16 @@ function tierFromEvent(
   data: Record<string, unknown>,
   proProductId: string | null,
 ): Tier | null {
-  // Scheduled cancellation: keep current tier (paid period still valid).
+  // `subscription.canceled` covers TWO cases:
+  //   - scheduled cancel-at-period-end: status is still active/trialing, the paid period
+  //     keeps running -> keep tier (demoting would strip a paid period -> MoR refund risk).
+  //   - immediate cancellation: Polar marks the subscription with a terminal status
+  //     (canceled/revoked/...) and ends access now -> demote to free.
+  // Polar reports an immediate cancel as `status=canceled` (NOT `subscription.revoked`),
+  // so canceled must be demoted when its status is terminal, not blindly kept.
   if (SCHEDULED_CANCEL_EVENTS.has(type)) {
-    return null;
+    const status = typeof data.status === "string" ? data.status : "";
+    return FREE_STATUSES.has(status) ? "free" : null;
   }
 
   // Confirmed loss of access -> demote (no product gating needed for demotion).

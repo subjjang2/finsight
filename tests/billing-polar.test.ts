@@ -62,15 +62,33 @@ describe("polar webhook tier mapping", () => {
     ).toEqual({ userId: USER_ID, tier: "pro" });
   });
 
-  it("does NOT demote on subscription.canceled (scheduled cancel keeps paid period)", () => {
-    // Polar fires subscription.canceled when the user schedules cancel-at-period-end.
-    // Access must remain until the period actually ends (revoked), to avoid MoR refund disputes.
+  it("does NOT demote on a scheduled subscription.canceled (active status keeps paid period)", () => {
+    // Polar fires subscription.canceled when the user schedules cancel-at-period-end while
+    // the subscription is still active. Access must remain until the period ends, to avoid
+    // MoR refund disputes.
     expect(
       getPolarTierUpdate({
         type: "subscription.canceled",
         data: { customer: { external_id: USER_ID } },
       }),
     ).toBeNull();
+    expect(
+      getPolarTierUpdate({
+        type: "subscription.canceled",
+        data: { status: "active", cancel_at_period_end: true, customer: { external_id: USER_ID } },
+      }),
+    ).toBeNull();
+  });
+
+  it("DOES demote on an immediate subscription.canceled (terminal status = access ended)", () => {
+    // An immediate cancel (cancel_at_period_end=false) arrives as subscription.canceled with
+    // a terminal status, NOT as subscription.revoked. Access has ended, so demote to free.
+    expect(
+      getPolarTierUpdate({
+        type: "subscription.canceled",
+        data: { status: "canceled", cancel_at_period_end: false, external_customer_id: USER_ID },
+      }),
+    ).toEqual({ userId: USER_ID, tier: "free" });
   });
 
   it("demotes to free only on subscription.revoked", () => {
@@ -257,16 +275,36 @@ describe("polar webhook route — single transactional RPC", () => {
 });
 
 describe("polar webhook ordering guard", () => {
-  it("extracts the subscription modified timestamp, falling back to current_period_end", () => {
+  it("uses modified_at as the ordering key and never falls back to current_period_end", () => {
     expect(
       getEventModifiedAt({ type: "subscription.updated", data: { modified_at: "2026-06-29T00:00:00Z" } }),
     ).toBe("2026-06-29T00:00:00Z");
 
+    // current_period_end is a FUTURE timestamp; using it as the ordering key would make
+    // every later demotion event look stale and get dropped, so it must NOT be a fallback.
     expect(
       getEventModifiedAt({ type: "subscription.updated", data: { current_period_end: "2026-07-29T00:00:00Z" } }),
-    ).toBe("2026-07-29T00:00:00Z");
+    ).toBeNull();
 
     expect(getEventModifiedAt({ type: "subscription.updated", data: {} })).toBeNull();
+  });
+
+  it("does not drop a revoke that arrives after an active event with a future period end", () => {
+    // Active event: its ordering key is modified_at (now), NOT the future period end.
+    const activeKey = getEventModifiedAt({
+      type: "subscription.active",
+      data: { modified_at: "2026-06-30T12:24:00Z", current_period_end: "2026-07-30T00:00:00Z" },
+    });
+    // Revoke arrives a minute later.
+    const revokeKey = getEventModifiedAt({
+      type: "subscription.revoked",
+      data: { modified_at: "2026-06-30T12:25:00Z" },
+    });
+
+    expect(activeKey).toBe("2026-06-30T12:24:00Z");
+    expect(revokeKey).toBe("2026-06-30T12:25:00Z");
+    // The revoke (demotion) must be applied, not rejected as stale.
+    expect(isNewerEvent(revokeKey, activeKey)).toBe(true);
   });
 
   it("applies an update only when it is not older than the stored timestamp", () => {
