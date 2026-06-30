@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createPolarCheckoutUrl } from "../../../../lib/billing/checkout";
+import { getPublicSiteUrl } from "../../../../lib/auth/validation";
 import { createServerClient } from "../../../../lib/supabase/server";
 
 export async function POST(request: Request) {
@@ -27,7 +28,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    const origin = new URL(request.url).origin;
+    // request.url's host behind Railway's proxy is the internal container
+    // address (localhost:8080); success/return URLs must use the public site URL.
+    const origin = getPublicSiteUrl();
     const url = await createPolarCheckoutUrl({
       userId: user.id,
       email: user.email ?? null,
