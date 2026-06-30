@@ -23,6 +23,7 @@
 - UI는 한국어. `docs/UI_GUIDE.md`의 AI-슬롭 안티패턴을 위반하지 않는다.
 
 ## 개발 프로세스
+- CRITICAL: 가드레일은 `CLAUDE.md`(Claude Code용)와 `AGENTS.md`(codex 하네스 `scripts/execute.py`가 매 step 프롬프트에 주입)로 이중 관리한다. 아키텍처/프로세스 규칙을 바꾸면 **두 파일을 함께 갱신**한다. 화면·컴포넌트 정본은 `docs/*.md`이며, 문서가 코드와 어긋나면 코드 기준으로 문서를 고친다.
 - CRITICAL: 새 기능 구현 시 반드시 테스트를 먼저 작성하고, 테스트가 통과하는 구현을 작성할 것 (TDD). `scripts/hooks/tdd-guard.sh`가 강제.
 - 커밋 메시지는 conventional commits 형식을 따를 것 (feat:, fix:, docs:, refactor:)
 - 유료 API(Claude) 호출이 발생하는 작업은 실행 전 사용자에게 확인받는다.
@@ -32,6 +33,7 @@ npm run dev      # 개발 서버
 npm run build    # 프로덕션 빌드 (output: standalone)
 npm run lint     # ESLint
 npm run test     # 테스트
+python -m pytest scripts/test_execute.py   # 하네스(execute.py) 테스트
 
 ## 환경변수
 ANTHROPIC_API_KEY                # 서버 전용

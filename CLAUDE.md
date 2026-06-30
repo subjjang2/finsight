@@ -20,6 +20,7 @@
 - UI는 한국어. 시각 규칙은 `docs/UI_GUIDE.md`(색·타이포·컴포넌트, AI-슬롭 안티패턴), 화면 흐름·온보딩·단계 전환은 `docs/UX_GUIDE.md`(퍼널), 재사용 컴포넌트 목록은 `docs/COMPONENTS.md`를 정본으로 따른다.
 
 ## 개발 프로세스
+- CRITICAL: 가드레일은 `CLAUDE.md`(Claude Code용)와 `AGENTS.md`(codex 하네스 `scripts/execute.py`가 매 step 프롬프트에 주입)로 이중 관리한다. 아키텍처/프로세스 규칙을 바꾸면 **두 파일을 함께 갱신**한다. 화면·컴포넌트 정본은 `docs/*.md`이며, 문서가 코드와 어긋나면 코드 기준으로 문서를 고친다.
 - CRITICAL: 새 기능 구현 시 반드시 테스트를 먼저 작성하고, 테스트가 통과하는 구현을 작성할 것 (TDD). `scripts/hooks/tdd-guard.sh`가 강제.
   - 테스트 러너는 Vitest. 테스트는 소스 옆에 `*.test.ts`로 colocate한다 (예: `services/claude.test.ts`).
   - route 핸들러(`route.ts`)는 통합 테스트가 없으면 tdd-guard가 Edit를 차단한다. 같은 폴더에 `route.test.ts`를 두거나 핵심 로직을 테스트된 `lib`/`services`로 추출할 것. page/layout/types/config는 면제.
@@ -31,6 +32,7 @@ npm run dev      # 개발 서버
 npm run build    # 프로덕션 빌드 (output: standalone)
 npm run lint     # ESLint
 npm run test     # 테스트 (Vitest)
+python -m pytest scripts/test_execute.py   # 하네스(execute.py) 테스트
 # E2E 시나리오·실행 방식은 docs/E2E_TEST_SCENARIOS.md 참조
 
 ## 환경변수
