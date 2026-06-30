@@ -28,21 +28,25 @@ const REQUIRED_FIELDS: MappingField[] = ["date", "merchant", "amount"];
 // Mirrors the server-side 5MB cap so the user gets immediate feedback.
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 
-const ALLOWED_CSV_TYPES = new Set([
+const ALLOWED_UPLOAD_TYPES = new Set([
   "",
   "text/csv",
   "application/csv",
-  "application/vnd.ms-excel",
+  "application/vnd.ms-excel", // legacy .xls
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
 ]);
+
+const ALLOWED_UPLOAD_EXTENSIONS = [".csv", ".xlsx", ".xls"];
 
 export type CsvValidation = { ok: true } | { ok: false; message: string };
 
 export function validateCsvFile(file: File): CsvValidation {
-  const isCsvExtension = file.name.toLowerCase().endsWith(".csv");
-  const isCsvType = ALLOWED_CSV_TYPES.has(file.type);
+  const name = file.name.toLowerCase();
+  const hasAllowedExtension = ALLOWED_UPLOAD_EXTENSIONS.some((ext) => name.endsWith(ext));
+  const hasAllowedType = ALLOWED_UPLOAD_TYPES.has(file.type);
 
-  if (!isCsvExtension || !isCsvType) {
-    return { ok: false, message: "CSV 파일(.csv)만 업로드할 수 있습니다." };
+  if (!hasAllowedExtension || !hasAllowedType) {
+    return { ok: false, message: "CSV 또는 엑셀 파일(.csv, .xlsx, .xls)만 업로드할 수 있습니다." };
   }
 
   if (file.size === 0) {
@@ -154,7 +158,7 @@ export function UploadFlow({
         <div>
           <h1 className="text-4xl font-semibold text-ink">명세서 업로드</h1>
           <p className="mt-3 text-sm leading-relaxed text-muted">
-            CSV를 올리면 먼저 컬럼 매핑을 확인한 뒤 분석을 시작합니다.
+            CSV 또는 엑셀을 올리면 먼저 컬럼 매핑을 확인한 뒤 분석을 시작합니다.
           </p>
         </div>
         <Badge className="tabular-nums">이번 달 {used}/{limit}건</Badge>
@@ -167,7 +171,7 @@ export function UploadFlow({
       {stage === "select" && !isUploading ? (
         <Card>
           <input
-            accept=".csv,text/csv"
+            accept=".csv,.xlsx,.xls,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             className="hidden"
             onChange={(event) => {
               const nextFile = event.target.files?.[0];
@@ -207,9 +211,9 @@ export function UploadFlow({
               <path d="M12 16V4m-5 5 5-5 5 5" />
               <path d="M4 18v1a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-1" />
             </svg>
-            <span className="text-base font-semibold text-ink">CSV 파일 선택</span>
+            <span className="text-base font-semibold text-ink">CSV·엑셀 파일 선택</span>
             <span className="mt-2 max-w-md text-sm leading-relaxed text-muted">
-              카드사 원본 CSV를 그대로 선택하세요. 업로드 후 분석 전에 날짜, 가맹점, 금액 컬럼을 직접 확인합니다.
+              카드사 원본 CSV 또는 엑셀(.xlsx, .xls)을 그대로 선택하세요. 업로드 후 분석 전에 날짜, 가맹점, 금액 컬럼을 직접 확인합니다.
             </span>
           </button>
           {file ? (
@@ -227,7 +231,7 @@ export function UploadFlow({
       ) : null}
 
       {stage === "select" && !file && !isUploading ? (
-        <EmptyState title="아직 선택한 파일이 없습니다" message="CSV 파일을 선택하면 매핑 확인 단계가 표시됩니다." />
+        <EmptyState title="아직 선택한 파일이 없습니다" message="CSV 또는 엑셀 파일을 선택하면 매핑 확인 단계가 표시됩니다." />
       ) : null}
 
       {stage === "mapping" && upload ? (

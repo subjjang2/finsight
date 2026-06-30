@@ -19,8 +19,18 @@ describe("validateCsvFile", () => {
     expect(validateCsvFile(fakeFile({})).ok).toBe(true);
   });
 
-  it("rejects non-csv extensions", () => {
+  it("rejects unsupported extensions", () => {
     expect(validateCsvFile(fakeFile({ name: "report.pdf", type: "application/pdf" })).ok).toBe(false);
+  });
+
+  it("accepts an .xlsx file even with an empty content type", () => {
+    expect(validateCsvFile(fakeFile({ name: "statement.xlsx", type: "" })).ok).toBe(true);
+  });
+
+  it("accepts a legacy .xls file", () => {
+    expect(
+      validateCsvFile(fakeFile({ name: "이용대금명세서.xls", type: "application/vnd.ms-excel" })).ok,
+    ).toBe(true);
   });
 
   it("rejects files over the 5MB server limit", () => {

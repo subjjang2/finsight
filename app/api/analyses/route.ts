@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildInsight, normalizeTransactionsFromMapping } from "../../../lib/analysis";
-import { decodeBuffer } from "../../../lib/csv/decode";
-import { parseCsv } from "../../../lib/csv/parse";
+import { parseStatement } from "../../../lib/csv/statement";
 import { currentPeriod } from "../../../lib/entitlements";
 import { createServerClient } from "../../../lib/supabase/server";
 import { classifyTransactions } from "../../../services/claude";
@@ -77,7 +76,7 @@ export async function POST(request: Request) {
   let normalized;
 
   try {
-    const parsed = parseCsv(decodeBuffer(new Uint8Array(await file.arrayBuffer())));
+    const parsed = parseStatement(new Uint8Array(await file.arrayBuffer()));
     normalized = normalizeTransactionsFromMapping(parsed.headers, parsed.rows, mapping);
   } catch (error) {
     return NextResponse.json({ error: errorMessage(error) }, { status: 400 });

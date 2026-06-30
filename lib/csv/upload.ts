@@ -3,20 +3,23 @@ export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const ALLOWED_CONTENT_TYPES = new Set([
   "text/csv",
   "application/csv",
-  "application/vnd.ms-excel",
+  "application/vnd.ms-excel", // legacy .xls (also sent for some .csv)
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
   "text/plain",
 ]);
+
+const ALLOWED_EXTENSIONS = [".csv", ".xlsx", ".xls"];
 
 export type UploadValidationResult =
   | { ok: true }
   | { ok: false; status: number; message: string };
 
 /**
- * Pure validation for an uploaded card-statement file.
+ * Pure validation for an uploaded card-statement file (CSV or Excel).
  *
- * Client-supplied `type` is spoofable, so we treat a CSV extension as
- * sufficient and only reject when both the content type and the extension
- * clearly indicate a non-CSV file.
+ * Client-supplied `type` is spoofable, so we treat a supported extension
+ * (.csv/.xlsx/.xls) as sufficient and only reject when both the content type
+ * and the extension clearly indicate an unsupported file.
  */
 export function validateUploadFile(input: {
   size: number;
@@ -36,14 +39,15 @@ export function validateUploadFile(input: {
   }
 
   const contentType = input.type.trim().toLowerCase();
-  const hasCsvExtension = input.name.trim().toLowerCase().endsWith(".csv");
+  const name = input.name.trim().toLowerCase();
+  const hasAllowedExtension = ALLOWED_EXTENSIONS.some((ext) => name.endsWith(ext));
   const hasAllowedType = contentType !== "" && ALLOWED_CONTENT_TYPES.has(contentType);
 
-  if (!hasAllowedType && !hasCsvExtension) {
+  if (!hasAllowedType && !hasAllowedExtension) {
     return {
       ok: false,
       status: 415,
-      message: "CSV 파일만 업로드할 수 있습니다.",
+      message: "CSV 또는 엑셀 파일만 업로드할 수 있습니다.",
     };
   }
 

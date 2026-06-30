@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { decodeBuffer } from "../../../lib/csv/decode";
-import { parseCsv } from "../../../lib/csv/parse";
+import { parseStatement } from "../../../lib/csv/statement";
 import { validateUploadFile } from "../../../lib/csv/upload";
 import { createServerClient } from "../../../lib/supabase/server";
 import { mapColumns } from "../../../services/claude";
@@ -39,14 +38,14 @@ export async function POST(request: Request) {
 
   try {
     const bytes = new Uint8Array(await file.arrayBuffer());
-    parsed = parseCsv(decodeBuffer(bytes));
+    parsed = parseStatement(bytes);
   } catch (error) {
     return NextResponse.json({ error: errorMessage(error) }, { status: 400 });
   }
 
   const storagePath = `${user.id}/${crypto.randomUUID()}-${safeFileName(file.name)}`;
   const { error: uploadError } = await supabase.storage.from(BUCKET).upload(storagePath, file, {
-    contentType: "text/csv",
+    contentType: file.type || "application/octet-stream",
     upsert: false,
   });
 

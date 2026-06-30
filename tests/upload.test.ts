@@ -45,7 +45,7 @@ describe("validateUploadFile", () => {
     ).toEqual({ ok: true });
   });
 
-  it("rejects a non-CSV content type", () => {
+  it("rejects an unsupported content type and extension", () => {
     expect(
       validateUploadFile({
         size: 1024,
@@ -55,7 +55,7 @@ describe("validateUploadFile", () => {
     ).toEqual({
       ok: false,
       status: 415,
-      message: "CSV 파일만 업로드할 수 있습니다.",
+      message: "CSV 또는 엑셀 파일만 업로드할 수 있습니다.",
     });
   });
 
@@ -65,13 +65,45 @@ describe("validateUploadFile", () => {
     ).toEqual({ ok: true });
   });
 
-  it("rejects a non-csv extension when content type is missing", () => {
+  it("accepts an .xlsx file by extension when content type is missing", () => {
     expect(
       validateUploadFile({ size: 1024, type: "", name: "statement.xlsx" }),
+    ).toEqual({ ok: true });
+  });
+
+  it("accepts a legacy .xls file by extension when content type is missing", () => {
+    expect(
+      validateUploadFile({ size: 1024, type: "", name: "이용대금명세서.xls" }),
+    ).toEqual({ ok: true });
+  });
+
+  it("accepts an .xlsx file by its OOXML content type", () => {
+    expect(
+      validateUploadFile({
+        size: 1024,
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        name: "statement.xlsx",
+      }),
+    ).toEqual({ ok: true });
+  });
+
+  it("accepts a legacy .xls file by its ms-excel content type", () => {
+    expect(
+      validateUploadFile({
+        size: 1024,
+        type: "application/vnd.ms-excel",
+        name: "statement.xls",
+      }),
+    ).toEqual({ ok: true });
+  });
+
+  it("rejects a non-statement extension when content type is missing", () => {
+    expect(
+      validateUploadFile({ size: 1024, type: "", name: "statement.pdf" }),
     ).toEqual({
       ok: false,
       status: 415,
-      message: "CSV 파일만 업로드할 수 있습니다.",
+      message: "CSV 또는 엑셀 파일만 업로드할 수 있습니다.",
     });
   });
 
