@@ -13,6 +13,10 @@ phases/**/step*-output.json
 # claude session-local logs
 .claude/audit.jsonl
 
+# local deploy/reset scratch — contains secrets, never commit
+railway-vars.env
+reset_db.sql
+
 # python
 __pycache__/
 .pytest_cache/
