@@ -1,4 +1,5 @@
 import { Badge, Card, ErrorState } from "../../../components/ui";
+import { CheckoutSuccessWatcher } from "../../../components/dashboard/CheckoutSuccessWatcher";
 import { createServerClient } from "../../../lib/supabase/server";
 import { FREE_MONTHLY_LIMIT, PRO_FAIR_USE_LIMIT } from "../../../types/tier";
 import type { Tier } from "../../../types/tier";
@@ -31,7 +32,13 @@ const PLANS = [
   },
 ] as const;
 
-export default async function PricingPage() {
+export default async function PricingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ checkout?: string }>;
+}) {
+  const { checkout } = await searchParams;
+  const fromCheckout = checkout === "success";
   const supabase = await createServerClient();
   const {
     data: { user },
@@ -62,6 +69,9 @@ export default async function PricingPage() {
           분석 횟수는 매월 1일에 리셋됩니다. 결제와 구독 관리는 Polar 호스팅 페이지에서 처리합니다.
         </p>
       </header>
+
+      <CheckoutSuccessWatcher active={fromCheckout} tier={currentTier} />
+
 
       <div className="grid max-w-4xl gap-4 md:grid-cols-2">
         {PLANS.map((plan) => {
