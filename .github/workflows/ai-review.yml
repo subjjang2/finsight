@@ -1,14 +1,20 @@
 name: AI Review (review-code)
 
-# 비용·보안 통제: 자동 실행하지 않는다. 신뢰된 사람이 명시적으로 요청할 때만 실행한다.
-#  - PR에 'ai-review' 라벨을 달 때 (라벨은 repo write 권한자만 부착 가능 → 사람이 게이트)
-#  - PR 코멘트에 '@claude' 멘션 + 작성자가 write 권한자(OWNER/MEMBER/COLLABORATOR)일 때
+# 자동화 수준: "처음 1회 자동 + 이후 명시적 재리뷰"
+#  - PR을 처음 열 때(opened) 또는 draft→ready 전환 시(ready_for_review): 자동 1회
+#  - 커밋 push(synchronize)에는 자동으로 돌지 않는다 → 비용 통제
+#  - 재리뷰가 필요하면: 'ai-review' 라벨을 (다시) 달거나, write 권한자가 '@claude' 멘션
 #
-# 구현: headless `claude -p "/review-code"`. 공식 action@v1은 github_token을 명시해도
-#       OIDC를 강제해 App 미설치 환경에서 실패해 사용하지 않는다.
+# 구현: headless `claude -p "/review-code"`. action@v1은 OIDC 강제로 App 미설치 환경에서 실패해 미사용.
 on:
   pull_request:
-    types: [labeled]
+    types: [opened, ready_for_review, labeled]
+    paths:
+      - 'app/**'
+      - 'lib/**'
+      - 'services/**'
+      - 'components/**'
+      - 'types/**'
   issue_comment:
     types: [created]
 
@@ -16,22 +22,25 @@ concurrency:
   group: ai-review-${{ github.event.pull_request.number || github.event.issue.number }}
   cancel-in-progress: true
 
-# 최소 권한: 리뷰 코멘트 post(pull-requests: write)와 코드 읽기(contents: read)만.
 permissions:
   contents: read
   pull-requests: write
 
 jobs:
   review:
-    # 트리거 게이팅(보안):
-    #  - 라벨 경로: 'ai-review'는 write 권한자만 달 수 있어 사람이 리뷰 여부를 게이트한다.
-    #  - 멘션 경로: author_association으로 write 권한자만 허용 → 외부/fork PR 작성자는
-    #    @claude로 시크릿 보유 에이전트를 트리거할 수 없다.
+    # 트리거 게이팅(비용·보안):
+    #  - PR 경로: draft 제외 + fork 제외(외부 PR엔 secret이 없어 실패 + 보안). 그리고
+    #    action이 'opened'/'ready_for_review'(첫 자동) 또는 'labeled'+ai-review(수동 재리뷰)일 때만.
+    #    synchronize(커밋 push)는 목록에 없어 자동 재실행되지 않는다.
+    #  - 멘션 경로: write 권한자만 → 외부인이 시크릿 보유 에이전트를 트리거하지 못한다.
     if: >-
       ${{
         (github.event_name == 'pull_request'
-          && github.event.label.name == 'ai-review'
-          && !github.event.pull_request.draft)
+          && !github.event.pull_request.draft
+          && github.event.pull_request.head.repo.full_name == github.repository
+          && (github.event.action == 'opened'
+              || github.event.action == 'ready_for_review'
+              || (github.event.action == 'labeled' && github.event.label.name == 'ai-review')))
         || (github.event_name == 'issue_comment'
           && github.event.issue.pull_request != null
           && contains(github.event.comment.body, '@claude')
@@ -50,9 +59,8 @@ jobs:
       - name: Install Claude Code
         run: npm install -g @anthropic-ai/claude-code
 
-      # 툴 최소화(보안): 리뷰는 리포트 전용이므로 Edit/Write를 부여하지 않는다.
-      # Bash는 Workflow 서브에이전트의 gh/git 조회에 필요해 유지하되, 아래 프롬프트의
-      # injection 방어 지시로 diff 내용의 명령 실행·시크릿 유출을 차단한다.
+      # 툴 최소화(보안): 리뷰는 리포트 전용이라 Edit/Write 미부여. Bash는 서브에이전트의
+      # gh/git 조회에 필요해 유지하되, 아래 프롬프트의 injection 방어 지시로 시크릿 유출·명령 실행을 차단.
       - name: Run review-code (headless)
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
