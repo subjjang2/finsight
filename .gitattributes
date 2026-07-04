@@ -1,0 +1,14 @@
+# Workflow 스크립트와 셸 훅은 LF를 강제한다.
+# CRLF면 Workflow 툴의 스크립트 승인 검증이 깨지고(headless 스모크에서 확인됨),
+# sh 훅 실행도 Windows에서 오작동한다.
+*.mjs text eol=lf
+*.sh  text eol=lf
+
+# 나머지 텍스트 소스는 저장소 내에서 LF로 정규화(체크아웃은 OS 기본)
+*.ts  text
+*.tsx text
+*.js  text
+*.json text
+*.md  text
+*.yml text eol=lf
+*.yaml text eol=lf
