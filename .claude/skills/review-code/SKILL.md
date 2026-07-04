@@ -83,6 +83,24 @@ Walkthrough: 이 변경이 무엇을 하는지 2~3줄
 - major ≥ 1 → **Changes Requested**
 - 그 외 → **Approve**
 
+## CI 모드 (GitHub Actions)
+
+`GITHUB_TOKEN`/`GITHUB_ACTIONS` 환경이 감지되면(= `.github/workflows/ai-review.yml`에서
+`claude-code-action`으로 실행될 때) 다음이 달라진다:
+
+- **비용 가드(0단계) 생략**: 사람이 없는 headless 실행이다. 라벨/멘션 게이팅이 이미
+  트리거 단계에서 비용을 통제하므로, 프롬프트 지시대로 확인 없이 완주한다.
+- **diff 범위**: PR의 `base...head` (예: `git diff origin/<base>...HEAD` 또는 `gh pr diff <n>`).
+- **인라인 코멘트를 실제 PR에 post**: 터미널 리포트 대신, confirmed finding마다 4줄 포맷을
+  PR 인라인 리뷰 코멘트로 단다. PR #2에서 검증한 경로를 재사용:
+  ```
+  gh api -X POST repos/{owner}/{repo}/pulls/{n}/comments \
+    --raw-field body="[심각도] 제목\nTL;DR: …\nWhy: …\n→ Fix: …" \
+    -f commit_id="<head sha>" -f path="<file>" -F line=<line> -f side=RIGHT
+  ```
+  (`claude-code-action`의 `classify_inline_comments`가 이 코멘트들을 하나의 리뷰로 묶어준다.)
+- **판정+집계 요약**은 PR 코멘트(`gh pr comment`)로 남긴다.
+
 ## 확장 (10차원)
 
 `.claude/workflows/review-code.mjs`의 `DIMENSIONS` 배열에 항목을 추가하면 차원이 늘어난다.

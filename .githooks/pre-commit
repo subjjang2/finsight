@@ -1,0 +1,21 @@
+#!/bin/sh
+# pre-commit — 빠른 정적 게이트만. AI 리뷰는 여기 넣지 않는다(CI의 ai-review.yml 담당).
+# 이유: claude -p는 API 왕복 지연·비용이 커서 매 커밋에 부적합하다.
+#
+# 활성화: git config core.hooksPath .githooks  (npm install 시 prepare가 자동 설정)
+
+staged=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx)$' || true)
+[ -z "$staged" ] && exit 0
+
+echo "[pre-commit] lint..."
+npm run lint || { echo "[pre-commit] ESLint 실패 — 커밋 중단"; exit 1; }
+
+echo "[pre-commit] typecheck (tsc --noEmit)..."
+npx tsc --noEmit || { echo "[pre-commit] 타입 에러 — 커밋 중단"; exit 1; }
+
+echo "[pre-commit] related tests..."
+# staged 소스에 의존하는 테스트만 실행 (전체 스위트 아님)
+npx vitest related --run $staged || { echo "[pre-commit] 관련 테스트 실패 — 커밋 중단"; exit 1; }
+
+echo "[pre-commit] OK"
+exit 0
