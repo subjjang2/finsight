@@ -23,6 +23,13 @@ export const TEST_USER = {
 export function isE2E(): boolean {
   // NEXT_PUBLIC_* is inlined into the edge/middleware bundle, so it is checked too
   // to keep the flag readable from middleware where server-only env may be absent.
+  //
+  // Hard production guard: NEXT_PUBLIC_* is inlined into the edge/client bundle at
+  // build time, so a prod build carrying this flag would bypass auth + persistence
+  // entirely. Never honor the flag in production regardless of how it was set.
+  if (process.env.NODE_ENV === "production") {
+    return false;
+  }
   return (
     process.env.E2E_LOCAL === "1" ||
     process.env.NEXT_PUBLIC_E2E_LOCAL === "1"
