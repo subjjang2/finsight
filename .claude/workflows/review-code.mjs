@@ -134,7 +134,10 @@ log(`${DIMENSIONS.length}개 차원 병렬 리뷰 시작 (범위: ${range})`)
 
 const perDimension = await pipeline(
   DIMENSIONS,
-  (d) => agent(reviewPrompt(d), { label: `review:${d.key}`, phase: 'Review', schema: FINDINGS_SCHEMA }),
+  (d) =>
+    agent(reviewPrompt(d), { label: `review:${d.key}`, phase: 'Review', schema: FINDINGS_SCHEMA })
+      .catch(() => ({ findings: [] })), // 한 차원 실패가 그 차원 리뷰를 통째로 죽이지 않게 — verify 경로와 대칭
+
   (review, d) => {
     const findings = (review && review.findings) || []
     if (!findings.length) return []
