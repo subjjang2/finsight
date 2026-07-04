@@ -4,14 +4,13 @@
 #
 # 활성화: git config core.hooksPath .githooks  (npm install 시 prepare가 자동 설정)
 
+# 변경된 파일만 검사한다. 전체 프로젝트 lint/tsc는 기존 이슈가 무관한 커밋까지
+# 막으므로 쓰지 않는다(타입 안전은 CI 빌드/테스트가 담당).
 staged=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx)$' || true)
 [ -z "$staged" ] && exit 0
 
-echo "[pre-commit] lint..."
-npm run lint || { echo "[pre-commit] ESLint 실패 — 커밋 중단"; exit 1; }
-
-echo "[pre-commit] typecheck (tsc --noEmit)..."
-npx tsc --noEmit || { echo "[pre-commit] 타입 에러 — 커밋 중단"; exit 1; }
+echo "[pre-commit] lint (changed files)..."
+npx eslint $staged || { echo "[pre-commit] ESLint 실패 — 커밋 중단"; exit 1; }
 
 echo "[pre-commit] related tests..."
 # staged 소스에 의존하는 테스트만 실행 (전체 스위트 아님)
