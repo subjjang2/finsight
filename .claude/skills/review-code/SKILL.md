@@ -67,10 +67,11 @@ Why: 근거·터지는 시나리오
 ```
 심각도순으로 나열한다. (인라인엔 칭찬을 넣지 않는다 — 문제 지적 전용.)
 
-### ② PR 전체 요약 (맨 위 또는 맨 아래 1개)
+### ② PR 전체 요약 (맨 위 1개)
+**판정+집계는 맨 위 인용구(`>`) 한 줄로 올려 한눈에 보이게 한다** (GitHub·터미널 공통):
 ```
-판정: <아래 매핑으로 자동 도출>
-집계: 🔴 critical N · 🟠 major N · 🟡 minor N · ⚪ nit N   (verify 탈락 R건 제외됨)
+> 판정: **Blocked / Changes Requested / Approve** · 🔴 N · 🟠 N · 🟡 N · ⚪ N  (verify 탈락 R건 제외)
+
 Walkthrough: 이 변경이 무엇을 하는지 2~3줄
 잘된 점: 이 diff에서 잘 된 부분 (요약에만 존재)
 주요 이슈: critical·major만 나열 (minor/nit는 인라인 참고)
