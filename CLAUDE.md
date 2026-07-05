@@ -9,6 +9,7 @@
 - Supabase (Postgres + Auth + RLS + Storage)
 - Anthropic Claude Sonnet (CSV 컬럼 매핑 + 거래 분류)
 - Polar (구독 결제, Merchant of Record)
+- PostHog (product analytics, `/ingest` reverse proxy로 same-origin 전송)
 - 배포: Railway (상시 컨테이너, `output: "standalone"`)
 
 ## 아키텍처 규칙
@@ -33,6 +34,8 @@ npm run dev      # 개발 서버
 npm run build    # 프로덕션 빌드 (output: standalone)
 npm run lint     # ESLint
 npm run test     # 테스트 (Vitest)
+npm run eval     # 하네스 품질 eval (eval/harness, 유료 Claude 호출 — 실행 전 확인)
+npm run polar:check   # Polar sandbox 연결 점검 (docs/POLAR_TESTING.md)
 python -m pytest scripts/test_execute.py   # 하네스(execute.py) 테스트
 # E2E 시나리오·실행 방식은 docs/E2E_TEST_SCENARIOS.md 참조
 
@@ -41,6 +44,8 @@ ANTHROPIC_API_KEY                # 서버 전용
 NEXT_PUBLIC_SUPABASE_URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY
 NEXT_PUBLIC_SITE_URL             # 절대 URL(OAuth 콜백·Polar 체크아웃 URL 빌드). 로컬 http://localhost:3000
+NEXT_PUBLIC_POSTHOG_KEY          # 공개 키(클라이언트 노출 OK)
+NEXT_PUBLIC_POSTHOG_HOST         # 기본 https://us.i.posthog.com
 SUPABASE_SERVICE_ROLE_KEY        # 서버 전용
 POLAR_ACCESS_TOKEN               # 서버 전용
 POLAR_PRO_PRODUCT_ID             # 서버 전용, Pro 체크아웃 대상 상품

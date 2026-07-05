@@ -43,7 +43,8 @@ npm run polar:check
    - URL: `https://<ngrok>/api/polar/webhook`
    - Secret: `.env.local`의 `POLAR_WEBHOOK_SECRET`와 동일
    - Events: `subscription.active`, `subscription.created`, `subscription.updated`,
-     `subscription.revoked`, `subscription.canceled`
+     `subscription.uncanceled`, `subscription.revoked`, `subscription.canceled`
+     (`uncanceled`는 해지 취소 후 재활성 재부여용 — 빠뜨리면 재업그레이드가 안 뜬다)
 4. `http://localhost:3000` 로그인 → `/dashboard/pricing` → **업그레이드**
 5. 테스트 카드: `4242 4242 4242 4242`, 만료일 미래, CVC 임의, 우편번호 임의
 6. 확인:
@@ -76,4 +77,6 @@ Standard Webhooks 스펙(`whsec_` 제거 후 base64 디코드)과 다르다. 그
 - 같은 고객은 활성 구독이 있으면 재결제가 막힌다("already have an active subscription").
   재테스트하려면 Polar 대시보드에서 구독을 **즉시 해지(Revoke immediately)** 한다.
   (체크아웃 토큰에 `subscriptions:write` 스코프가 없으면 API로는 해지 불가, 대시보드로.)
-- DB 확인(서버): `profiles.tier`, `webhook_events`(멱등성 기록) 조회.
+- **로컬 tier 리셋은 `reset-tier` 스킬 / `scripts/set-tier.mjs`로.** `profiles.tier`는 DB 트리거로 잠겨 일반 권한으론 못 바꾸므로 service-role 스크립트로 free↔pro 전환한다. SQL 직접 수정 금지.
+- 해지 정책 주의: `subscription.canceled`는 기간말 예약 해지라 **즉시 강등하지 않는다**. 강등은 `subscription.revoked`/터미널 상태에서만(`lib/billing/polar.ts`). 예약 해지 후 tier가 그대로여도 정상.
+- DB 확인(서버): `profiles.tier`, `webhook_events`(멱등성 기록) 조회. 웹훅은 `apply_subscription_event` RPC로 `webhook-id` 기준 트랜잭션 처리.

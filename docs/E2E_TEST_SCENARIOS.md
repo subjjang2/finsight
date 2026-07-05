@@ -102,16 +102,15 @@ dev-browser --headless --timeout <초> run tests/e2e/<시나리오>.js
 - **selector**: 페이지 `h1`, 로그아웃 `button:has-text("로그아웃")`.
 - **기대**: 각 `h1` 일치, 요금제는 로그인 상태 카드 노출("로그인이 필요합니다" 없음), 로그아웃 후 `/login`, 이후 `/dashboard` 재접근 시 다시 `/login`으로 게이팅.
 
-### S8 — 업로드 → AI 매핑 → 분석 → 인사이트 (인증 + Claude 과금)
-- **목적**: 핵심 파이프라인(컬럼 매핑·거래 분류) 실제 Sonnet 검증.
+### S8 — 업로드 → AI 자동 매핑·분석 → 인사이트 (인증 + Claude 과금)
+- **목적**: 핵심 파이프라인(컬럼 자동 매핑·거래 분류) 실제 Sonnet 검증. 매핑 확인 단계는 없다(ADR-007a).
 - **전제**: ⚠️ 인증 정책 확인 + **유료 Claude 호출(매핑 1 + 분류 1) 사전 승인 필수**. 유효한 `ANTHROPIC_API_KEY` 필요.
 - **단계**:
   1. 로그인 → `/dashboard/upload`.
   2. `input[type="file"]`에 CSV 주입(buffer 페이로드).
-  3. "AI 컬럼 매핑 확인" 화면 대기(실제 mapColumns 호출).
-  4. 필수 필드 매핑 보장: `select[aria-label="<컬럼> 매핑 필드"]` → date/merchant/amount.
-  5. "분석 실행" 클릭(실제 classifyTransactions 호출) → `/dashboard` 대기.
-- **기대**: 매핑이 date/merchant/amount/ignore로 채워짐, 분석 후 대시보드에 "총 지출"·"카테고리별 지출"·"최근 거래" 표시, 에러 없음.
+  3. **매핑 확인 화면 없음** — 주입 즉시 매핑 추정(mapColumns) → 분류(classifyTransactions)가 자동으로 이어짐. 로딩 문구 "CSV를 읽고 컬럼을 매핑하는 중입니다." 노출.
+  4. 자동 완료 후 `/dashboard`로 이동 대기.
+- **기대**: 분석 후 대시보드에 "총 지출"·"카테고리별 지출"·"최근 지출 요약" 표시, 에러 없음.
 - **샘플 CSV 헤더**: `거래일자,가맹점,이용금액,승인번호`.
 
 ---

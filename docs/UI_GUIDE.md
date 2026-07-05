@@ -34,7 +34,8 @@
 |------|------|------|
 | 주 텍스트 | #f3f5f6 (≈text-white) | `--ink` |
 | 보조 | #9aa0a8 (≈text-neutral-400) | `--muted` |
-| 비활성 | #6b7177 (≈text-neutral-500) | `--muted-soft` |
+| 비활성 | #868b92 | `--muted-soft` |
+| 강조 구분선 | #33373f | `--line-strong` |
 
 ### 데이터/시맨틱 색상
 | 용도 | 값 | 토큰 |
@@ -43,21 +44,26 @@
 | 증가(delta) | #34d399 | `--up` |
 | 감소(delta)/부정 | #f0716b | `--down` |
 | 에러 | #ef4444 | - |
+| accent 글로우(미묘) | rgba(16,185,129,0.35) | `--accent-glow` |
+| accent 흐린 배경 | rgba(16,185,129,0.12) | `--accent-dim` |
+
+> `--accent-glow`/`--accent-dim`은 은은한 강조 배경·테두리용. "네온 글로우 애니메이션" 안티패턴과 다르다 — 정적 저채도로만 쓴다.
 
 ## 컴포넌트
+> 시맨틱 토큰만 쓴다(임의 hex/neutral-* 금지). 실제 primitive는 `components/ui/index.tsx`가 정본.
 ### 카드
 ```
-rounded-lg bg-[#141414] border border-neutral-800 p-6
+rounded-lg border border-line bg-surface p-6 text-ink
 ```
 ### 버튼
 ```
 Primary: rounded-lg bg-white text-black hover:bg-neutral-200 px-4 py-2 text-sm font-medium
-Accent:  rounded-lg bg-emerald-500 text-black hover:bg-emerald-400 px-4 py-2 text-sm font-medium
-Text:    text-neutral-500 hover:text-neutral-300
+Accent:  rounded-lg bg-accent text-black hover:bg-accent/90 px-4 py-2 text-sm font-medium
+Text:    text-muted hover:text-ink
 ```
 ### 입력 필드
 ```
-rounded-lg bg-neutral-900 border border-neutral-800 px-4 py-3 text-sm
+rounded-lg bg-surface-2 border border-line focus:border-accent px-4 py-3 text-sm
 ```
 
 ## 레이아웃

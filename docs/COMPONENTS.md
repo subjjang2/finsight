@@ -33,7 +33,7 @@
 
 ### `Select`
 - `select` 확장. `appearance-none` + 우측 chevron SVG(strokeWidth 1.5) 직접 렌더.
-- 접근성: 호출부에서 `aria-label` 부여 (예: UploadFlow의 매핑 필드 선택).
+- 접근성: 호출부에서 `aria-label` 부여.
 
 ### `Badge`
 - `span` 확장. 외곽선 있는 라벨 (`border-line bg-surface-2 text-muted text-xs`).
@@ -63,16 +63,22 @@
 
 `index.ts`에서 `DashboardShell`, `Sidebar`, 타입 `SidebarPlan` export.
 
-### `DashboardShell`
-- props: `children`, `currentPath?`, `plan?: SidebarPlan`(기본 `"free"`), `used?`(기본 0), `limit?`(기본 5).
-- 좌측 `Sidebar` + 우측 `main`(`max-w-6xl px-8 py-10`). 모든 대시보드 페이지의 래퍼.
+### `DashboardShell` (`"use client"`)
+- props: `children`, `plan?: SidebarPlan`(기본 `"free"`), `used?`(기본 0), `limit?`(기본 `FREE_MONTHLY_LIMIT`).
+- lg 이상: 좌측 `Sidebar` + 우측 `main`(`max-w-6xl px-4 py-8 sm:px-8 sm:py-10`). lg 미만: 상단바 + 오프캔버스 드로어(내부 `open` state, `onNavigate`로 닫힘). 모든 대시보드 페이지의 래퍼.
 
 ### `Sidebar`
-- props: `currentPath?`, `plan?`, `used?`, `limit?`.
-- 내부: `Logo`(emerald 라운드 로고), 4개 `NAV_ITEMS`(인사이트/업로드/월별 추이/요금제), `UsageMeter`, 로그아웃 폼(`signOut` 서버 액션).
-- nav active: `/dashboard`는 정확 일치, 나머지는 `startsWith`.
+- props: `plan?`, `used?`, `limit?`, `onNavigate?`(드로어에서 항목 클릭 시 닫기).
+- 내부: `Logo`(emerald 라운드 로고) + `<SidebarNav/>` + `UsageMeter` + `<LogoutButton/>` 조립. nav 항목·active 판정과 로그아웃 폼은 별도 컴포넌트로 추출됨(아래).
 - 아이콘은 인라인 SVG(strokeWidth 1.5), 둥근 배경 박스로 감싸지 않음.
 - `SidebarPlan = "free" | "pro"`.
+
+### `SidebarNav` (`SidebarNav.tsx`, `"use client"`)
+- props: `onNavigate?`.
+- 4개 `NAV_ITEMS`(인사이트/업로드/월별 추이/요금제) 렌더. active: `usePathname` 기준 `/dashboard`는 정확 일치, 나머지는 `startsWith`.
+
+### `LogoutButton` (`LogoutButton.tsx`, `"use client"`)
+- `signOut` 서버 액션 폼 + 로그아웃 시 PostHog `resetUser()` 호출.
 
 #### `UsageMeter` (Sidebar 내부, 비공개)
 - 플랜 배지 + "이번 달 분석 used/limit" + 진행 바(`bg-accent`, 100% cap).
@@ -113,6 +119,21 @@
 - 생성/재생성은 `POST /api/advice`(`{ regenerate }`) 호출. 호출 중에는 **인디터미닛 프로그래스 바**(`AnalyzingBar`, `@keyframes indeterminate-bar`는 `globals.css`) 표시. 실패 시 인라인 `text-error` 메시지.
 - 비용: advice 호출은 명세서당 1회만 일어나도록 결과를 `insights.advice`에 캐시(`/api/advice`가 관리). "다시 생성"으로만 재호출.
 - 같이 export: `proAnalysisInitialView`, 타입 `ProAnalysisView = "locked" | "idle" | "result"`.
+
+### 결제 컴포넌트 (`CheckoutButton`, `CheckoutStatusBanner`, `CheckoutSuccessWatcher`)
+- `CheckoutButton` — `POST /api/polar/checkout`(Accept json → `{ url }`)로 Polar 체크아웃 이동. 요금제 화면의 "Pro 시작"(accent).
+- `CheckoutStatusBanner` — 체크아웃 복귀 쿼리(`checkout=success|cancel` 등)를 배너로 안내.
+- `CheckoutSuccessWatcher` — 결제 성공 후 웹훅의 tier 반영을 폴링(`lib/billing/checkout-status.ts`, ~15s)해 대시보드를 갱신.
+
+---
+
+## analytics/ — 계측 (`components/`)
+
+### `PostHogProvider` (`PostHogProvider.tsx`, `"use client"`)
+- `NEXT_PUBLIC_POSTHOG_KEY` 있을 때만 PostHog 초기화(`lib/posthog.ts`의 `resolvePostHogBootstrap`). 키 없으면 no-op.
+
+### `PostHogIdentify` (`analytics/PostHogIdentify.tsx`, `"use client"`)
+- 로그인 유저를 PostHog에 `identify`. 로그아웃은 `LogoutButton`의 `resetUser()`.
 
 ---
 
