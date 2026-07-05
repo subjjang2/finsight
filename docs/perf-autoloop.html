@@ -1,0 +1,276 @@
+<title>autoperf · Lighthouse 자동 최적화 리포트</title>
+<style>
+  :root{--bg:#0b0f14;--surface:#111821;--surface2:#0d131b;--border:#1e2a37;--grid:#233242;--text:#e6edf3;--muted:#8b9bad;--emerald:#10b981;--amber:#f59e0b;--blue:#3b82f6;--red:#ef4444;--violet:#8b5cf6}
+  @media(prefers-color-scheme:light){:root{--bg:#f4f6f9;--surface:#fff;--surface2:#eef2f6;--border:#dbe3ea;--grid:#e6ecf2;--text:#0d1117;--muted:#5a6b7b}}
+  :root[data-theme=dark]{--bg:#0b0f14;--surface:#111821;--surface2:#0d131b;--border:#1e2a37;--grid:#233242;--text:#e6edf3;--muted:#8b9bad}
+  :root[data-theme=light]{--bg:#f4f6f9;--surface:#fff;--surface2:#eef2f6;--border:#dbe3ea;--grid:#e6ecf2;--text:#0d1117;--muted:#5a6b7b}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:960px;margin:0 auto;padding:36px 20px 72px}
+  .mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+  h1{font-size:24px;margin:0 0 4px;letter-spacing:-.02em}
+  h2{font-size:15px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:34px 0 14px;font-weight:600}
+  .sub{color:var(--muted);font-size:13px;margin-bottom:8px}
+  .meta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:26px}
+  .tag{font-size:12px;padding:3px 9px;border-radius:999px;background:var(--surface2);border:1px solid var(--border);color:var(--muted)}
+  .tag b{color:var(--text)}
+  .hero{display:grid;grid-template-columns:auto 1fr;gap:24px;align-items:center;background:linear-gradient(135deg,color-mix(in srgb,var(--emerald) 10%,var(--surface)),var(--surface));border:1px solid var(--border);border-radius:16px;padding:22px 26px;margin-bottom:8px}
+  .hero-num{font-size:52px;font-weight:700;letter-spacing:-.03em;line-height:1}
+  .hero-num small{font-size:22px;color:var(--muted);font-weight:500}
+  .hero-delta{color:var(--emerald);font-weight:600;font-size:14px;margin-top:4px}
+  .hero-verdict{font-size:13px;color:var(--muted)}
+  .hero-verdict b{color:var(--text)}
+  .gauges{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .gauge{text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 4px}
+  .gauge-num{fill:var(--text);font:700 22px 'JetBrains Mono',monospace}
+  .gauge-cap{font-size:12px;color:var(--muted);margin-top:2px}
+  .delta{font-size:11px;font-weight:700;margin-left:2px}.delta.up{color:var(--emerald)}.delta.down{color:var(--red)}.delta.flat{color:var(--muted)}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:16px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}
+  .card .k{font-size:12px;color:var(--muted);margin-bottom:6px}
+  .card .v{font-size:26px;font-weight:650}.card .v small{font-size:14px;color:var(--muted)}
+  .card .d{font-size:12px;margin-top:4px}
+  .up{color:var(--emerald)}.down{color:var(--red)}.muted{color:var(--muted)}.small{font-size:12px}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;overflow-x:auto}
+  .chart{width:100%;height:auto;min-width:600px}
+  .svg-lbl{fill:var(--text);font:700 12px 'JetBrains Mono',monospace}
+  .svg-cost{fill:var(--amber);font:600 11px 'JetBrains Mono',monospace}
+  .svg-axis{fill:var(--muted);font:11px Inter,sans-serif}
+  table{width:100%;border-collapse:collapse;font-size:13px;min-width:440px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--border)}
+  th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em}
+  td.num{font-family:'JetBrains Mono',monospace;text-align:right;white-space:nowrap}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:middle}
+  .dot.good{background:var(--emerald)}.dot.ni{background:var(--amber)}.dot.poor{background:var(--red)}
+  .costbar{display:flex;height:22px;border-radius:6px;overflow:hidden;flex:1;border:1px solid var(--border)}
+  .costbar .seg{height:100%}
+  .cbrow{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+  .cblabel{width:150px;font-size:13px;color:var(--muted);flex:none}.cblabel b{color:var(--text);font-family:'JetBrains Mono',monospace}
+  .cblegend{display:flex;flex-wrap:wrap;gap:12px;margin-top:6px;font-size:12px;color:var(--muted)}
+  .lg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px}
+  .tl-item{position:relative;padding:0 0 18px 26px;border-left:2px solid var(--border)}
+  .tl-item:last-child{border-left-color:transparent}
+  .tl-dot{position:absolute;left:-7px;top:2px;width:12px;height:12px;border-radius:50%;background:var(--muted);border:2px solid var(--bg)}
+  .tl-item.ok .tl-dot{background:var(--emerald)}.tl-item.no .tl-dot{background:var(--red)}.tl-item.base .tl-dot{background:var(--blue)}
+  .tl-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:3px}
+  .tl-files{margin-top:6px;font-size:12px}.ftag{font-size:10px;color:var(--muted);border:1px solid var(--border);border-radius:4px;padding:0 4px}
+  .pill{font-size:11px;background:var(--surface2);border:1px solid var(--border);border-radius:999px;padding:2px 9px;font-family:'JetBrains Mono',monospace;color:var(--muted)}
+  .badge{padding:2px 8px;border-radius:6px;font:700 11px Inter;letter-spacing:.03em}
+  .badge.ok{background:var(--emerald);color:#03130c}.badge.no{background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+  .chip{display:inline-block;padding:1px 7px;border-radius:6px;font:600 11px 'JetBrains Mono',monospace;background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+  .chip.warn{background:color-mix(in srgb,var(--amber) 18%,transparent);color:var(--amber);border-color:transparent}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:680px){.two,.hero,.gauges{grid-template-columns:1fr}.gauges{grid-template-columns:repeat(2,1fr)}}
+  ul.clean{list-style:none;padding:0;margin:0}ul.clean li{padding:10px 0;border-bottom:1px solid var(--border)}ul.clean li:last-child{border:0}
+  .diff{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:'JetBrains Mono',monospace;font-size:12px;overflow-x:auto;margin-top:8px;white-space:pre}
+  .diff .del{color:var(--red)}.diff .add{color:var(--emerald)}
+  .method{font-size:13px}.method td{padding:7px 10px}.method code{background:var(--surface2);padding:1px 5px;border-radius:4px}
+  a{color:var(--emerald)}
+  .flow{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:14px;overflow-x:auto;white-space:nowrap}
+  .acts{display:flex;flex-direction:column;gap:12px}
+  .act{display:grid;grid-template-columns:auto 1fr;gap:16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;border-left:4px solid var(--muted)}
+  .act.now{border-left-color:var(--emerald)}.act.next{border-left-color:var(--amber)}.act.later{border-left-color:var(--blue)}
+  .act-rank{width:30px;height:30px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-weight:700;font-family:'JetBrains Mono',monospace;font-size:14px}
+  .act-head{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin-bottom:5px;font-size:15px}
+  .pri{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;text-transform:uppercase;letter-spacing:.04em}
+  .pri.now{background:var(--emerald);color:#03130c}.pri.next{background:color-mix(in srgb,var(--amber) 22%,transparent);color:var(--amber)}.pri.later{background:color-mix(in srgb,var(--blue) 22%,transparent);color:var(--blue)}
+  .eff{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace}
+  .act-why{margin-bottom:8px}.act-why code{background:var(--surface2);padding:1px 5px;border-radius:4px}
+  .act-impact{font-size:12px;margin-top:8px}.act-impact .muted{text-transform:uppercase;letter-spacing:.04em;font-size:10px;margin-right:6px}
+</style>
+<div class="wrap">
+  <h1>autoperf · Lighthouse 자동 최적화 리포트</h1>
+  <div class="sub">karpathy/autoresearch 방식의 자기개선 루프 — 측정 → 최적화 1건 → 재측정 → 개선 시 keep · 악화 시 revert 반복</div>
+  <div class="meta">
+    <span class="tag">대상 <b>/</b></span>
+    <span class="tag">프리셋 <b>mobile</b></span>
+    <span class="tag">측정 <b>3-run 중앙값</b></span>
+    <span class="tag">종료 <b>target_reached</b></span>
+    <span class="tag">반복 <b>2회</b> (채택 2)</span>
+    <span class="tag">생성 <b>2026-07-05</b></span>
+  </div>
+
+  <div class="hero">
+    <div>
+      <div class="hero-num">400<small>/400</small></div>
+      <div class="hero-delta">▲ 9 vs baseline 391</div>
+    </div>
+    <div class="hero-verdict">
+      4개 카테고리(Performance·Accessibility·Best Practices·SEO) 합계가 <b>391</b> → <b>400</b> 로 올랐습니다.
+      연속 cost 지표는 <b>2059</b> → <b>2030</b> (<b>1.4%</b> 감소).
+      루프는 <b>target_reached</b> 로 자동 종료됐습니다.
+    </div>
+  </div>
+
+  <h2>✅ 다음 할 일 — 이대로 따라 하세요</h2>
+  <div class="acts">
+    <div class="act now">
+      <div class="act-rank">1</div>
+      <div class="act-body">
+        <div class="act-head"><b>이 브랜치를 머지해 개선 2건을 확정한다</b><span class="pri now">지금</span><span class="eff">⏱ 2분</span></div>
+        <div class="muted small act-why">색 대비(a11y 95→100)와 favicon 404 제거(best-practices 96→100)가 <code>perf/lighthouse-autoloop</code>에 커밋돼 있습니다. 머지해야 반영됩니다.</div>
+        <div class="diff">git checkout security/owasp-2025-remediation
+git merge --no-ff perf/lighthouse-autoloop
+# 또는 PR:  gh pr create --base main --head perf/lighthouse-autoloop --title &quot;perf: a11y·best-practices 100&quot;</div>
+        <div class="act-impact"><span class="muted">기대효과</span> categoryScoreSum 391 → 400 확정, 코드 회귀 없음(정밀 커밋).</div>
+      </div>
+    </div>
+    <div class="act next">
+      <div class="act-rank">2</div>
+      <div class="act-body">
+        <div class="act-head"><b>남은 cost를 줄인다 — legacy JS 11.4 KiB 제거</b><span class="pri next">다음</span><span class="eff">⏱ 15분 + 루프</span></div>
+        <div class="muted small act-why">점수는 만점이지만 modern 브라우저에 불필요한 폴리필/트랜스파일이 11.4 KiB 실려 cost를 올립니다. <code>.browserslistrc</code>로 타깃을 최신으로 좁히면 Next/SWC가 legacy 변환을 건너뜁니다.</div>
+        <div class="diff"># .browserslistrc 생성
+printf &quot;chrome &gt;= 111\nedge &gt;= 111\nfirefox &gt;= 111\nsafari &gt;= 16.4\n&quot; &gt; .browserslistrc
+# 그리고 루프로 검증(개선 시 자동 keep):
+Workflow({ scriptPath: &quot;.claude/workflows/autoperf.js&quot;, args: { routes: &quot;/&quot;, targetSum: 400 } })</div>
+        <div class="act-impact"><span class="muted">기대효과</span> unused JS 41.8 KiB·legacy 11.4 KiB 축소 → cost 추가 하락, 초기 로드 소폭 개선.</div>
+      </div>
+    </div>
+    <div class="act next">
+      <div class="act-rank">3</div>
+      <div class="act-body">
+        <div class="act-head"><b>실사용 화면(/dashboard)으로 루프를 확장한다</b><span class="pri next">다음</span><span class="eff">⏱ 1시간</span></div>
+        <div class="muted small act-why">랜딩은 이미 만점입니다. 유저가 실제 오래 머무는 곳은 차트·업로드가 있는 <code>/dashboard</code>이고 여기에 진짜 개선 여지가 있습니다. 단 인증이 필요합니다.</div>
+        <div class="diff"># 1) 하네스에 세션 쿠키 주입 옵션 추가(lighthouse extraHeaders 또는 로그인 스텝)
+# 2) 인증된 상태로 측정
+node scripts/perf/lighthouse-run.mjs --label dash --routes /dashboard,/dashboard/trend --runs 3</div>
+        <div class="act-impact"><span class="muted">기대효과</span> 실사용 체감 성능(LCP·TBT) 최적화. 개선 폭이 가장 클 후보.</div>
+      </div>
+    </div>
+    <div class="act later">
+      <div class="act-rank">4</div>
+      <div class="act-body">
+        <div class="act-head"><b>배포본을 실측하고 회귀를 정기 감지한다</b><span class="pri later">선택</span><span class="eff">⏱ 30분</span></div>
+        <div class="muted small act-why">로컬 prod 빌드는 네트워크·CDN을 제외합니다. Railway 배포 URL을 측정하면 현실 점수를 얻고, 주기 실행으로 회귀를 조기에 잡습니다.</div>
+        <div class="diff"># 배포 후 실 URL 측정 (하네스에 --url 원격 지원 추가 후)
+# 정기 실행은 /schedule 또는 CI 스텝으로 perf-autoloop 스킬 트리거</div>
+        <div class="act-impact"><span class="muted">기대효과</span> CDN 포함 현실 점수 + 성능 회귀 조기 경보.</div>
+      </div>
+    </div></div>
+
+  <h2>카테고리 점수 (최종 · baseline 대비)</h2>
+  <div class="gauges"><div class="gauge">
+    <svg viewBox="0 0 84 84" width="84" height="84">
+      <circle cx="42" cy="42" r="34" fill="none" stroke="var(--grid)" stroke-width="7"/>
+      <circle cx="42" cy="42" r="34" fill="none" stroke="var(--emerald)" stroke-width="7" stroke-linecap="round"
+        stroke-dasharray="213.6" stroke-dashoffset="0.0" transform="rotate(-90 42 42)"/>
+      <text x="42" y="47" text-anchor="middle" class="gauge-num">100</text>
+    </svg>
+    <div class="gauge-cap">Performance <span class="delta flat">=</span></div>
+  </div><div class="gauge">
+    <svg viewBox="0 0 84 84" width="84" height="84">
+      <circle cx="42" cy="42" r="34" fill="none" stroke="var(--grid)" stroke-width="7"/>
+      <circle cx="42" cy="42" r="34" fill="none" stroke="var(--emerald)" stroke-width="7" stroke-linecap="round"
+        stroke-dasharray="213.6" stroke-dashoffset="0.0" transform="rotate(-90 42 42)"/>
+      <text x="42" y="47" text-anchor="middle" class="gauge-num">100</text>
+    </svg>
+    <div class="gauge-cap">Accessibility <span class="delta up">▲5</span></div>
+  </div><div class="gauge">
+    <svg viewBox="0 0 84 84" width="84" height="84">
+      <circle cx="42" cy="42" r="34" fill="none" stroke="var(--grid)" stroke-width="7"/>
+      <circle cx="42" cy="42" r="34" fill="none" stroke="var(--emerald)" stroke-width="7" stroke-linecap="round"
+        stroke-dasharray="213.6" stroke-dashoffset="0.0" transform="rotate(-90 42 42)"/>
+      <text x="42" y="47" text-anchor="middle" class="gauge-num">100</text>
+    </svg>
+    <div class="gauge-cap">Best Practices <span class="delta up">▲4</span></div>
+  </div><div class="gauge">
+    <svg viewBox="0 0 84 84" width="84" height="84">
+      <circle cx="42" cy="42" r="34" fill="none" stroke="var(--grid)" stroke-width="7"/>
+      <circle cx="42" cy="42" r="34" fill="none" stroke="var(--emerald)" stroke-width="7" stroke-linecap="round"
+        stroke-dasharray="213.6" stroke-dashoffset="0.0" transform="rotate(-90 42 42)"/>
+      <text x="42" y="47" text-anchor="middle" class="gauge-num">100</text>
+    </svg>
+    <div class="gauge-cap">SEO <span class="delta flat">=</span></div>
+  </div></div>
+
+  <div class="cards">
+    <div class="card"><div class="k">categoryScoreSum</div><div class="v">400<small>/400</small></div><div class="d up">▲ 9</div></div>
+    <div class="card"><div class="k">cost (낮을수록 좋음)</div><div class="v">2030</div><div class="d up">▼ 29 (1.4%)</div></div>
+    <div class="card"><div class="k">채택 / 시도</div><div class="v">2<small>/2</small></div><div class="d muted">전부 첫 시도에 채택</div></div>
+    <div class="card"><div class="k">LCP</div><div class="v">1.36 s</div><div class="d up">good &lt; 2.5 s</div></div>
+  </div>
+
+  <h2>반복 추이</h2>
+  <div class="panel"><svg viewBox="0 0 760 260" class="chart" role="img" aria-label="반복별 점수 합계와 cost 추이">
+    <line x1="46" y1="214" x2="714" y2="214" stroke="var(--grid)" stroke-width="1"/><text x="38" y="218" text-anchor="end" class="svg-axis">386</text><line x1="46" y1="166.5" x2="714" y2="166.5" stroke="var(--grid)" stroke-width="1"/><text x="38" y="170.5" text-anchor="end" class="svg-axis">390</text><line x1="46" y1="119" x2="714" y2="119" stroke="var(--grid)" stroke-width="1"/><text x="38" y="123" text-anchor="end" class="svg-axis">394</text><line x1="46" y1="71.5" x2="714" y2="71.5" stroke="var(--grid)" stroke-width="1"/><text x="38" y="75.5" text-anchor="end" class="svg-axis">397</text><line x1="46" y1="24" x2="714" y2="24" stroke="var(--grid)" stroke-width="1"/><text x="38" y="28" text-anchor="end" class="svg-axis">401</text><rect x="20" y="150.66666666666669" width="52" height="63.333333333333314" rx="4" fill="var(--blue)" opacity="0.9"/>
+      <text x="46" y="143.66666666666669" text-anchor="middle" class="svg-lbl">391</text><rect x="354" y="87.33333333333334" width="52" height="126.66666666666666" rx="4" fill="var(--emerald)" opacity="0.9"/>
+      <text x="380" y="80.33333333333334" text-anchor="middle" class="svg-lbl">396</text><rect x="688" y="36.66666666666666" width="52" height="177.33333333333334" rx="4" fill="var(--emerald)" opacity="0.9"/>
+      <text x="714" y="29.666666666666657" text-anchor="middle" class="svg-lbl">400</text>
+    <path d="M46,72.87681159420313 L380,79.99825087456293 L714,141.7173913043479" fill="none" stroke="var(--amber)" stroke-width="2.5"/><circle cx="46" cy="72.87681159420313" r="4" fill="var(--amber)"/><text x="46" y="63.87681159420313" text-anchor="middle" class="svg-cost">2059</text><circle cx="380" cy="79.99825087456293" r="4" fill="var(--amber)"/><text x="380" y="70.99825087456293" text-anchor="middle" class="svg-cost">2056</text><circle cx="714" cy="141.7173913043479" r="4" fill="var(--amber)"/><text x="714" y="132.7173913043479" text-anchor="middle" class="svg-cost">2030</text><text x="46" y="244" text-anchor="middle" class="svg-axis">baseline</text><text x="380" y="244" text-anchor="middle" class="svg-axis">iter 1</text><text x="714" y="244" text-anchor="middle" class="svg-axis">iter 2</text>
+    <text x="46" y="15" class="svg-axis">categoryScoreSum /400 · 막대</text>
+    <text x="714" y="15" text-anchor="end" class="svg-axis" fill="var(--amber)">cost · 선 (낮을수록 좋음)</text>
+  </svg></div>
+
+  <h2>autoresearch 루프 타임라인</h2>
+  <div class="flow">baseline → experiment(수정+측정) → 결정적 gate(sum↑ 또는 동점 시 cost 3%↓, 회귀 없음) → keep/revert → 반복</div>
+  <div><div class="tl-item base"><div class="tl-dot"></div><div class="tl-body"><div class="tl-head"><b>baseline</b><span class="pill">391/400 · cost 2059</span></div><div class="muted small">측정 기준점 — a11y 95, best-practices 96</div></div></div><div class="tl-item ok"><div class="tl-dot"></div><div class="tl-body">
+        <div class="tl-head"><b>iter 1</b> · color-contrast (raise --muted-soft token) <span class="badge ok">KEPT</span>
+          <span class="pill">396/400 <span class="up">(+5)</span> · cost 2056 <span class="up">(−3)</span></span></div>
+        <div class="muted small">Bumping the --muted-soft neutral token from #6b7177 to #868b92 lifts small muted text above the 4.5:1 WCAG AA contrast threshold, closing the only accessibility audit gap.</div>
+        <div class="tl-files"><code>app/globals.css</code> <span class="ftag">수정</span></div>
+      </div></div><div class="tl-item ok"><div class="tl-dot"></div><div class="tl-body">
+        <div class="tl-head"><b>iter 2</b> · favicon: add app/icon.svg (fix /favicon.ico 404 console error) <span class="badge ok">KEPT</span>
+          <span class="pill">400/400 <span class="up">(+4)</span> · cost 2030 <span class="up">(−26)</span></span></div>
+        <div class="muted small">The only best-practices deduction was a console error from a 404 on /favicon.ico; adding an App Router icon.svg makes the document declare an icon so Chrome stops requesting the missing favicon, clearing the error and raising bestPractices 96 to 100.</div>
+        <div class="tl-files"><code>app/icon.svg</code> <span class="ftag">신규</span></div>
+      </div></div></div>
+
+  <div class="two" style="margin-top:8px">
+    <div>
+      <h2>Core Web Vitals · 지표 (before → after)</h2>
+      <div class="panel">
+        <table>
+          <thead><tr><th>지표</th><th class="num">baseline</th><th class="num">best</th><th class="num">Δ</th></tr></thead>
+          <tbody><tr><td><span class="dot good"></span>LCP</td><td class="num muted">1.36 s</td><td class="num"><b>1.36 s</b></td><td class="num"><span class="up">−1 ms</span></td></tr><tr><td><span class="dot good"></span>FCP</td><td class="num muted">763 ms</td><td class="num"><b>762 ms</b></td><td class="num"><span class="up">−1 ms</span></td></tr><tr><td><span class="dot good"></span>TBT</td><td class="num muted">10 ms</td><td class="num"><b>5 ms</b></td><td class="num"><span class="up">−5 ms</span></td></tr><tr><td><span class="dot good"></span>CLS</td><td class="num muted">0</td><td class="num"><b>0</b></td><td class="num"><span class="muted">·</span></td></tr><tr><td><span class="dot good"></span>Speed Index</td><td class="num muted">763 ms</td><td class="num"><b>762 ms</b></td><td class="num"><span class="up">−1 ms</span></td></tr><tr><td><span class="dot good"></span>TTI</td><td class="num muted">1.57 s</td><td class="num"><b>1.56 s</b></td><td class="num"><span class="up">−6 ms</span></td></tr><tr><td>Total bytes</td><td class="num muted">119.0 KiB</td><td class="num"><b>117.3 KiB</b></td><td class="num"><span class="up">−1.7 KiB</span></td></tr><tr><td>Main-thread work</td><td class="num muted">417 ms</td><td class="num"><b>381 ms</b></td><td class="num"><span class="up">−35 ms</span></td></tr><tr><td>JS bootup</td><td class="num muted">75 ms</td><td class="num"><b>65 ms</b></td><td class="num"><span class="up">−11 ms</span></td></tr><tr><td>Unused JS</td><td class="num muted">41.8 KiB</td><td class="num"><b>41.8 KiB</b></td><td class="num"><span class="up">−0.0 KiB</span></td></tr><tr><td>Legacy JS</td><td class="num muted">11.4 KiB</td><td class="num"><b>11.4 KiB</b></td><td class="num"><span class="muted">·</span></td></tr></tbody>
+        </table>
+        <div class="cblegend" style="margin-top:12px"><span class="lg"><span class="dot good"></span></span>good <span class="lg"><span class="dot ni"></span></span>needs-improvement <span class="lg"><span class="dot poor"></span></span>poor · Δ 초록=개선</div>
+      </div>
+    </div>
+    <div>
+      <h2>연속 cost 지표 분해</h2>
+      <div class="panel">
+        <div class="small muted" style="margin-bottom:12px">Lighthouse 점수가 100에 포화돼도 gradient를 유지하는 2차 목표. 가중합 <code class="mono">LCP·1 + TBT·4 + CLS·8000 + SI·0.5 + KiB·2 + Bootup·0.5</code></div>
+        
+    <div class="cbrow"><span class="cblabel">baseline <b>2059</b></span><div class="costbar"><div class="seg" style="width:66.21%;background:#3b82f6" title="LCP: 1363"></div><div class="seg" style="width:1.85%;background:#8b5cf6" title="TBT: 38"></div><div class="seg" style="width:18.54%;background:#10b981" title="Speed Index: 382"></div><div class="seg" style="width:11.56%;background:#f59e0b" title="Bytes: 238"></div><div class="seg" style="width:1.83%;background:#64748b" title="Bootup: 38"></div></div></div>
+    <div class="cbrow"><span class="cblabel">best <b>2030</b></span><div class="costbar"><div class="seg" style="width:67.11%;background:#3b82f6" title="LCP: 1362"></div><div class="seg" style="width:0.99%;background:#8b5cf6" title="TBT: 20"></div><div class="seg" style="width:18.78%;background:#10b981" title="Speed Index: 381"></div><div class="seg" style="width:11.56%;background:#f59e0b" title="Bytes: 235"></div><div class="seg" style="width:1.59%;background:#64748b" title="Bootup: 32"></div></div></div>
+    <div class="cblegend"><span class="lg"><i style="background:#3b82f6"></i>LCP 1362</span><span class="lg"><i style="background:#8b5cf6"></i>TBT 20</span><span class="lg"><i style="background:#ec4899"></i>CLS 0</span><span class="lg"><i style="background:#10b981"></i>Speed Index 381</span><span class="lg"><i style="background:#f59e0b"></i>Bytes 235</span><span class="lg"><i style="background:#64748b"></i>Bootup 32</span></div>
+      </div>
+    </div>
+  </div>
+
+  <h2>적용된 최적화 (코드 상세)</h2>
+  <div class="panel">
+    <div style="margin-bottom:16px">
+      <b>iter 1 · color-contrast</b> <span class="badge ok">KEPT</span> <span class="pill">accessibility 95 → 100</span>
+      <div class="muted small" style="margin:4px 0">muted 텍스트 토큰이 WCAG AA 4.5:1 대비 미달 → 뉴트럴 토큰을 밝게 올려 대비 통과.</div>
+      <div class="diff"><span class="mono">app/globals.css</span>
+<span class="del">-  --muted-soft: #6b7177;</span>
+<span class="add">+  --muted-soft: #868b92;</span></div>
+    </div>
+    <div>
+      <b>iter 2 · favicon (app/icon.svg)</b> <span class="badge ok">KEPT</span> <span class="pill">best-practices 96 → 100</span>
+      <div class="muted small" style="margin:4px 0">best-practices 감점의 원인은 <code>/favicon.ico</code> 404 콘솔 에러 하나. App Router <code>icon.svg</code>를 추가해 문서가 아이콘을 선언 → 404 요청 소멸.</div>
+      <div class="diff"><span class="mono">app/icon.svg</span> <span class="add">(신규)</span> — App Router가 <code>&lt;link rel="icon"&gt;</code>를 자동 주입</div>
+    </div>
+  </div>
+
+  <h2>남은 개선 기회 (목표 400 도달 후에도 cost 절감 여지)</h2>
+  <div class="two">
+    <div class="panel"><div class="small muted" style="margin-bottom:8px">Opportunities</div><ul class="clean"><li><b>Reduce unused JavaScript</b> <span class="chip warn">~150ms</span><div class="muted small">Reduce unused JavaScript and defer loading scripts until they are required to decrease bytes consumed by network activity. Learn how to reduce unused JavaScript.</div></li><li><b>Avoid serving legacy JavaScript to modern browsers</b> <span class="chip warn">~150ms</span><div class="muted small">Polyfills and transforms enable legacy browsers to use new JavaScript features. However, many aren't necessary for modern browsers. Consider modifying your JavaScript build process to not transpile Baseline features, unless you know you must support legacy browsers. Learn why most sites can deploy ES6+ code without transpiling</div></li><li><b>Eliminate render-blocking resources</b> <span class="chip warn">~42ms</span><div class="muted small">Resources are blocking the first paint of your page. Consider delivering critical JS/CSS inline and deferring all non-critical JS/styles. Learn how to eliminate render-blocking resources.</div></li></ul></div>
+    <div class="panel"><div class="small muted" style="margin-bottom:8px">Diagnostics</div><ul class="clean"><li><b>Legacy JavaScript</b> <span class="chip">Est savings of 12 KiB</span></li><li><b>Render blocking requests</b> <span class="chip">Est savings of 40 ms</span></li></ul></div>
+  </div>
+
+  <h2>방법론 & 재현</h2>
+  <div class="panel">
+    <table class="method">
+      <tr><td class="muted">autoresearch 원본</td><td>train.py 수정 → 5분 학습 → val_bpb(낮을수록↑) 기준 keep/discard</td></tr>
+      <tr><td class="muted">여기 매핑</td><td>최적화 1건 → <code>lighthouse-run.mjs</code>(빌드+측정) → categoryScoreSum↑ / cost↓ 기준 keep/revert</td></tr>
+      <tr><td class="muted">1차 목표</td><td>categoryScoreSum (perf+a11y+bp+seo, 만점 400)</td></tr>
+      <tr><td class="muted">2차 목표</td><td>연속 cost (항상 gradient가 있어 점수 포화 시에도 최적화 방향 유지)</td></tr>
+      <tr><td class="muted">채택 게이트</td><td>sum 증가 <b>또는</b> (동점 &amp; cost 3%↓), 단 어떤 카테고리도 회귀 없을 것</td></tr>
+      <tr><td class="muted">종료 조건</td><td>categoryScoreSum 400 도달 · 2회 연속 정체 · 최대 5회</td></tr>
+      <tr><td class="muted">구성 파일</td><td><code>scripts/perf/lighthouse-run.mjs</code> · <code>.claude/workflows/autoperf.js</code> · <code>scripts/perf/dashboard.mjs</code> · 스킬 <code>perf-autoloop</code></td></tr>
+      <tr><td class="muted">원본 Lighthouse 리포트</td><td><a href="../reports/perf/iter-2/root.report.html">../reports/perf/iter-2/root.report.html</a> (로컬)</td></tr>
+    </table>
+  </div>
+</div>
