@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge, Button, Card, EmptyState, ErrorState, LoadingState, SuccessState } from "../ui";
+import { track } from "../../lib/analytics/client";
+import { ANALYTICS_EVENTS } from "../../lib/analytics/events";
 import type { ColumnMapping } from "../../types/mapping";
 
 type UploadResponse = {
@@ -74,6 +76,7 @@ export function UploadFlow({
     setFile(nextFile);
     setError(null);
     setIsUploading(true);
+    track(ANALYTICS_EVENTS.uploadStarted, { sizeBytes: nextFile.size });
 
     const formData = new FormData();
     formData.append("file", nextFile);
@@ -90,6 +93,7 @@ export function UploadFlow({
       }
 
       const uploadResponse = payload as UploadResponse;
+      track(ANALYTICS_EVENTS.uploadCompleted, { rowCount: uploadResponse.rowCount });
       setUpload(uploadResponse);
       // End the upload/mapping phase before the analysis phase so the two
       // loading screens never render at the same time.
@@ -101,7 +105,9 @@ export function UploadFlow({
       await runAnalysis(uploadResponse);
     } catch (caught) {
       setStage("select");
-      setError(caught instanceof Error ? caught.message : "업로드에 실패했습니다.");
+      const message = caught instanceof Error ? caught.message : "업로드에 실패했습니다.";
+      track(ANALYTICS_EVENTS.uploadFailed, { message });
+      setError(message);
       setIsUploading(false);
     }
   }
@@ -109,6 +115,7 @@ export function UploadFlow({
   async function runAnalysis(uploadResponse: UploadResponse) {
     setError(null);
     setStage("analyzing");
+    track(ANALYTICS_EVENTS.analysisStarted, { rowCount: uploadResponse.rowCount });
 
     try {
       const response = await fetch("/api/analyses", {
@@ -124,9 +131,21 @@ export function UploadFlow({
       const payload = await response.json();
 
       if (!response.ok) {
+        // 402/403 = 한도 초과, 503 = AI 일시 중단, 그 외 = 일반 오류로 실패 사유를 구분한다.
+        const reason =
+          response.status === 402 || response.status === 403
+            ? "limit_exceeded"
+            : response.status === 503
+              ? "ai_unavailable"
+              : "error";
+        track(ANALYTICS_EVENTS.analysisFailed, { reason, status: response.status });
         throw new Error(payload.error ?? "분석에 실패했습니다.");
       }
 
+      track(ANALYTICS_EVENTS.analysisCompleted, {
+        rowCount: uploadResponse.rowCount,
+        skipped: payload?.skipped ?? 0,
+      });
       setStage("done");
       router.refresh();
       router.push("/dashboard");

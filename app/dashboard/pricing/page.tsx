@@ -1,4 +1,5 @@
 import { Badge, Card, ErrorState } from "../../../components/ui";
+import { CheckoutButton } from "../../../components/dashboard/CheckoutButton";
 import { CheckoutSuccessWatcher } from "../../../components/dashboard/CheckoutSuccessWatcher";
 import { createServerClient } from "../../../lib/supabase/server";
 import { FREE_MONTHLY_LIMIT, PRO_FAIR_USE_LIMIT } from "../../../types/tier";
@@ -132,15 +133,7 @@ export default async function PricingPage({
               </ul>
 
               {isPro ? (
-                <form action="/api/polar/checkout" method="post">
-                  <button
-                    className="w-full rounded-lg bg-accent px-4 py-2 text-sm font-medium text-black transition-colors hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
-                    disabled={isCurrent}
-                    type="submit"
-                  >
-                    {isCurrent ? "사용 중" : "업그레이드"}
-                  </button>
-                </form>
+                <CheckoutButton disabled={isCurrent} />
               ) : (
                 <button
                   className="w-full rounded-lg bg-surface-3 px-4 py-2 text-sm font-medium text-muted"

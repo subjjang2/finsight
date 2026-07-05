@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { parseStatement } from "../../../lib/csv/statement";
 import { validateUploadFile } from "../../../lib/csv/upload";
 import { createServerClient } from "../../../lib/supabase/server";
+import { captureServerException } from "../../../lib/analytics/server";
 import { mapColumns } from "../../../services/claude";
 
 const BUCKET = "card-statements";
@@ -51,6 +52,10 @@ export async function POST(request: Request) {
 
   if (uploadError) {
     console.error("[uploads] storage upload failed", uploadError);
+    await captureServerException(uploadError, {
+      source: "uploads.storageUpload",
+      distinctId: user.id,
+    });
     return NextResponse.json({ error: "파일을 저장하지 못했습니다." }, { status: 500 });
   }
 
@@ -58,7 +63,12 @@ export async function POST(request: Request) {
 
   try {
     mapping = await mapColumns(parsed.headers, parsed.rows.slice(0, SAMPLE_ROW_COUNT));
-  } catch {
+  } catch (error) {
+    // AI 컬럼 매핑(유료 Claude) 실패 — 관측 대상.
+    await captureServerException(error, {
+      source: "uploads.mapColumns",
+      distinctId: user.id,
+    });
     return NextResponse.json({ error: "Column mapping is temporarily unavailable." }, { status: 503 });
   }
 
@@ -76,6 +86,10 @@ export async function POST(request: Request) {
 
   if (insertError || !upload) {
     console.error("[uploads] upload record insert failed", insertError);
+    await captureServerException(insertError ?? new Error("upload insert returned no row"), {
+      source: "uploads.recordInsert",
+      distinctId: user.id,
+    });
     return NextResponse.json({ error: "업로드 정보를 저장하지 못했습니다." }, { status: 500 });
   }
 

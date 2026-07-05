@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createPolarCheckoutUrl } from "../../../../lib/billing/checkout";
 import { getPublicSiteUrl } from "../../../../lib/auth/validation";
 import { createServerClient } from "../../../../lib/supabase/server";
+import { captureServerException } from "../../../../lib/analytics/server";
 
 export async function POST(request: Request) {
   const supabase = await createServerClient();
@@ -45,6 +46,10 @@ export async function POST(request: Request) {
 
     return NextResponse.redirect(url, { status: 303 });
   } catch (error) {
+    await captureServerException(error, {
+      source: "polar.checkout",
+      distinctId: user.id,
+    });
     return NextResponse.json({ error: error instanceof Error ? error.message : "Checkout unavailable." }, { status: 503 });
   }
 }

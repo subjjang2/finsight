@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { categoryLabel, isCategory } from "../../../lib/categories";
 import { createServerClient } from "../../../lib/supabase/server";
+import { captureServerException } from "../../../lib/analytics/server";
 import { generateSpendingAdvice } from "../../../services/claude";
 import type { Category } from "../../../types/category";
 
@@ -109,6 +110,10 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error("generateSpendingAdvice failed", error);
+    await captureServerException(error, {
+      source: "advice.generateSpendingAdvice",
+      distinctId: user.id,
+    });
 
     return NextResponse.json(
       { error: "분석을 생성하지 못했습니다. 잠시 후 다시 시도해 주세요." },

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getEventModifiedAt, getPolarTierUpdate, verifyPolarSignature } from "../../../../lib/billing/polar";
 import { createAdminClient } from "../../../../lib/supabase/admin";
+import { captureServerEvent, captureServerException } from "../../../../lib/analytics/server";
+import { ANALYTICS_EVENTS } from "../../../../lib/analytics/events";
 
 export async function POST(request: Request) {
   const secret = process.env.POLAR_WEBHOOK_SECRET;
@@ -48,8 +50,21 @@ export async function POST(request: Request) {
   });
 
   if (error) {
+    await captureServerException(error, {
+      source: "polar.webhook.applySubscriptionEvent",
+      distinctId: update?.userId,
+      properties: { eventId: webhookId },
+    });
     // Surface a 5xx so Polar retries and the transactional RPC can run again.
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Server-side source of truth for the tier change. Fire only on first processing
+  // (data !== false, i.e. not a duplicate) with a resolved user + tier.
+  if (data !== false && update?.userId && update.tier) {
+    await captureServerEvent(ANALYTICS_EVENTS.subscriptionUpgraded, update.userId, {
+      tier: update.tier,
+    });
   }
 
   // data === false -> the id was already processed (duplicate). Acknowledge with 200.

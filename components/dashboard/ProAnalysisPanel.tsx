@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { Button, Card } from "../ui";
+import { track } from "../../lib/analytics/client";
+import { ANALYTICS_EVENTS } from "../../lib/analytics/events";
 
 type Plan = "free" | "pro";
 
@@ -37,6 +39,7 @@ export function ProAnalysisPanel({
   async function generate(regenerate: boolean) {
     setLoading(true);
     setError(null);
+    track(ANALYTICS_EVENTS.adviceRequested, { regenerate });
 
     try {
       const response = await fetch("/api/advice", {
@@ -48,9 +51,11 @@ export function ProAnalysisPanel({
       const data = (await response.json().catch(() => null)) as { advice?: string; error?: string } | null;
 
       if (!response.ok || !data?.advice) {
+        track(ANALYTICS_EVENTS.adviceFailed, { status: response.status });
         throw new Error(data?.error ?? "분석을 생성하지 못했습니다.");
       }
 
+      track(ANALYTICS_EVENTS.adviceGenerated, { regenerate });
       setAdvice(data.advice);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "분석을 생성하지 못했습니다.");
@@ -138,6 +143,7 @@ function UpgradeButton() {
 
   async function upgrade() {
     setPending(true);
+    track(ANALYTICS_EVENTS.checkoutStarted, { plan: "pro", source: "pro_panel" });
 
     try {
       const response = await fetch("/api/polar/checkout", {

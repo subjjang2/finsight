@@ -3,6 +3,7 @@ import { buildInsight, normalizeTransactionsFromMapping } from "../../../lib/ana
 import { parseStatement } from "../../../lib/csv/statement";
 import { currentPeriod } from "../../../lib/entitlements";
 import { createServerClient } from "../../../lib/supabase/server";
+import { captureServerException } from "../../../lib/analytics/server";
 import { classifyTransactions } from "../../../services/claude";
 import { FREE_MONTHLY_LIMIT, PRO_FAIR_USE_LIMIT } from "../../../types/tier";
 import type { ColumnMapping, MappingField } from "../../../types/mapping";
@@ -108,6 +109,10 @@ export async function POST(request: Request) {
 
   if (creditError) {
     console.error("consume_analysis_credit failed", creditError.message);
+    await captureServerException(creditError, {
+      source: "analyses.consumeCredit",
+      distinctId: user.id,
+    });
 
     return NextResponse.json({ error: GENERIC_SERVER_ERROR }, { status: 500 });
   }
@@ -139,6 +144,12 @@ export async function POST(request: Request) {
     }));
   } catch (error) {
     console.error("classifyTransactions failed", error);
+    // 유료 Claude 호출 실패는 최우선 관측 대상 — 크레딧을 환불하기 전에 캡처한다.
+    await captureServerException(error, {
+      source: "analyses.classifyTransactions",
+      distinctId: user.id,
+      properties: { txCount: normalized.transactions.length },
+    });
     await refundCredit(supabase, period);
 
     return NextResponse.json({ error: "Analysis is temporarily unavailable." }, { status: 503 });
@@ -160,6 +171,10 @@ export async function POST(request: Request) {
 
     if (transactionError) {
       console.error("transactions insert failed", transactionError.message);
+      await captureServerException(transactionError, {
+        source: "analyses.transactionsInsert",
+        distinctId: user.id,
+      });
       await refundCredit(supabase, period);
 
       return NextResponse.json({ error: GENERIC_SERVER_ERROR }, { status: 500 });
@@ -181,6 +196,10 @@ export async function POST(request: Request) {
 
   if (insightError || !insightRow) {
     console.error("insights insert failed", insightError?.message);
+    await captureServerException(insightError ?? new Error("insights insert returned no row"), {
+      source: "analyses.insightsInsert",
+      distinctId: user.id,
+    });
     await refundCredit(supabase, period);
 
     return NextResponse.json({ error: GENERIC_SERVER_ERROR }, { status: 500 });
