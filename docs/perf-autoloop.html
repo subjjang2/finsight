@@ -68,11 +68,11 @@
   .flow{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:14px;overflow-x:auto;white-space:nowrap}
   .acts{display:flex;flex-direction:column;gap:12px}
   .act{display:grid;grid-template-columns:auto 1fr;gap:16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;border-left:4px solid var(--muted)}
-  .act.now{border-left-color:var(--emerald)}.act.next{border-left-color:var(--amber)}.act.later{border-left-color:var(--blue)}
+  .act.now{border-left-color:var(--emerald)}.act.next{border-left-color:var(--amber)}.act.later{border-left-color:var(--blue)}.act.skip{border-left-color:var(--red);opacity:.82}
   .act-rank{width:30px;height:30px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-weight:700;font-family:'JetBrains Mono',monospace;font-size:14px}
   .act-head{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin-bottom:5px;font-size:15px}
   .pri{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;text-transform:uppercase;letter-spacing:.04em}
-  .pri.now{background:var(--emerald);color:#03130c}.pri.next{background:color-mix(in srgb,var(--amber) 22%,transparent);color:var(--amber)}.pri.later{background:color-mix(in srgb,var(--blue) 22%,transparent);color:var(--blue)}
+  .pri.now{background:var(--emerald);color:#03130c}.pri.next{background:color-mix(in srgb,var(--amber) 22%,transparent);color:var(--amber)}.pri.later{background:color-mix(in srgb,var(--blue) 22%,transparent);color:var(--blue)}.pri.skip{background:color-mix(in srgb,var(--red) 20%,transparent);color:var(--red)}
   .eff{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace}
   .act-why{margin-bottom:8px}.act-why code{background:var(--surface2);padding:1px 5px;border-radius:4px}
   .act-impact{font-size:12px;margin-top:8px}.act-impact .muted{text-transform:uppercase;letter-spacing:.04em;font-size:10px;margin-right:6px}
@@ -85,7 +85,7 @@
     <span class="tag">프리셋 <b>mobile</b></span>
     <span class="tag">측정 <b>3-run 중앙값</b></span>
     <span class="tag">종료 <b>target_reached</b></span>
-    <span class="tag">반복 <b>2회</b> (채택 2)</span>
+    <span class="tag">반복 <b>3회</b> (채택 2)</span>
     <span class="tag">생성 <b>2026-07-05</b></span>
   </div>
 
@@ -117,34 +117,32 @@ git merge --no-ff perf/lighthouse-autoloop
     <div class="act next">
       <div class="act-rank">2</div>
       <div class="act-body">
-        <div class="act-head"><b>남은 cost를 줄인다 — legacy JS 11.4 KiB 제거</b><span class="pri next">다음</span><span class="eff">⏱ 15분 + 루프</span></div>
-        <div class="muted small act-why">점수는 만점이지만 modern 브라우저에 불필요한 폴리필/트랜스파일이 11.4 KiB 실려 cost를 올립니다. <code>.browserslistrc</code>로 타깃을 최신으로 좁히면 Next/SWC가 legacy 변환을 건너뜁니다.</div>
-        <div class="diff"># .browserslistrc 생성
-printf &quot;chrome &gt;= 111\nedge &gt;= 111\nfirefox &gt;= 111\nsafari &gt;= 16.4\n&quot; &gt; .browserslistrc
-# 그리고 루프로 검증(개선 시 자동 keep):
-Workflow({ scriptPath: &quot;.claude/workflows/autoperf.js&quot;, args: { routes: &quot;/&quot;, targetSum: 400 } })</div>
-        <div class="act-impact"><span class="muted">기대효과</span> unused JS 41.8 KiB·legacy 11.4 KiB 축소 → cost 추가 하락, 초기 로드 소폭 개선.</div>
-      </div>
-    </div>
-    <div class="act next">
-      <div class="act-rank">3</div>
-      <div class="act-body">
-        <div class="act-head"><b>실사용 화면(/dashboard)으로 루프를 확장한다</b><span class="pri next">다음</span><span class="eff">⏱ 1시간</span></div>
-        <div class="muted small act-why">랜딩은 이미 만점입니다. 유저가 실제 오래 머무는 곳은 차트·업로드가 있는 <code>/dashboard</code>이고 여기에 진짜 개선 여지가 있습니다. 단 인증이 필요합니다.</div>
-        <div class="diff"># 1) 하네스에 세션 쿠키 주입 옵션 추가(lighthouse extraHeaders 또는 로그인 스텝)
-# 2) 인증된 상태로 측정
+        <div class="act-head"><b>실사용 화면(/dashboard)으로 루프를 확장한다 — 남은 유일한 실질 지렛대</b><span class="pri next">다음</span><span class="eff">⏱ 1시간</span></div>
+        <div class="muted small act-why">랜딩 <code>/</code>은 4카테고리 만점 + 모든 CWV good 상태로 사실상 최적입니다. 유저가 오래 머무는 곳은 차트·업로드가 있는 <code>/dashboard</code>이고, 진짜 개선 여지는 거기 있습니다. 단 인증이 필요합니다.</div>
+        <div class="diff"># 1) 하네스에 세션 쿠키 주입(lighthouse extraHeaders) 또는 E2E_LOCAL 우회 로그인 스텝 추가
+# 2) 인증 상태로 측정 후 루프
 node scripts/perf/lighthouse-run.mjs --label dash --routes /dashboard,/dashboard/trend --runs 3</div>
-        <div class="act-impact"><span class="muted">기대효과</span> 실사용 체감 성능(LCP·TBT) 최적화. 개선 폭이 가장 클 후보.</div>
+        <div class="act-impact"><span class="muted">기대효과</span> 실사용 체감 성능(LCP·TBT·번들) 최적화. 개선 폭이 가장 클 후보.</div>
       </div>
     </div>
     <div class="act later">
-      <div class="act-rank">4</div>
+      <div class="act-rank">3</div>
       <div class="act-body">
         <div class="act-head"><b>배포본을 실측하고 회귀를 정기 감지한다</b><span class="pri later">선택</span><span class="eff">⏱ 30분</span></div>
         <div class="muted small act-why">로컬 prod 빌드는 네트워크·CDN을 제외합니다. Railway 배포 URL을 측정하면 현실 점수를 얻고, 주기 실행으로 회귀를 조기에 잡습니다.</div>
         <div class="diff"># 배포 후 실 URL 측정 (하네스에 --url 원격 지원 추가 후)
 # 정기 실행은 /schedule 또는 CI 스텝으로 perf-autoloop 스킬 트리거</div>
         <div class="act-impact"><span class="muted">기대효과</span> CDN 포함 현실 점수 + 성능 회귀 조기 경보.</div>
+      </div>
+    </div>
+    <div class="act skip">
+      <div class="act-rank">4</div>
+      <div class="act-body">
+        <div class="act-head"><b>하지 말 것 — .browserslistrc로 legacy JS(11.4 KiB) 제거는 효과 없음</b><span class="pri skip">배제됨</span><span class="eff">⏱ 실측 완료</span></div>
+        <div class="muted small act-why">iter 3에서 실측: modern 타깃 <code>.browserslistrc</code>를 넣어도 legacyJsBytes가 11712→11712로 <b>전혀 변하지 않음</b>. Next 15는 이 폴리필을 browserslist로 제거하지 않습니다. 루프가 자동 반려했습니다.</div>
+        <div class="diff"># 시도했다가 revert된 접근 — 반복하지 마세요.
+# 남은 unused JS 41.8 KiB는 이미 모든 CWV가 good이라 ROI가 낮습니다.</div>
+        <div class="act-impact"><span class="muted">기대효과</span> 가짜 개선 후보 제거 → 시간 절약. (autoresearch 루프의 음성 결과도 자산)</div>
       </div>
     </div></div>
 
@@ -186,17 +184,18 @@ node scripts/perf/lighthouse-run.mjs --label dash --routes /dashboard,/dashboard
   <div class="cards">
     <div class="card"><div class="k">categoryScoreSum</div><div class="v">400<small>/400</small></div><div class="d up">▲ 9</div></div>
     <div class="card"><div class="k">cost (낮을수록 좋음)</div><div class="v">2030</div><div class="d up">▼ 29 (1.4%)</div></div>
-    <div class="card"><div class="k">채택 / 시도</div><div class="v">2<small>/2</small></div><div class="d muted">전부 첫 시도에 채택</div></div>
+    <div class="card"><div class="k">채택 / 시도</div><div class="v">2<small>/3</small></div><div class="d muted">2건 채택 · 1건 반려</div></div>
     <div class="card"><div class="k">LCP</div><div class="v">1.36 s</div><div class="d up">good &lt; 2.5 s</div></div>
   </div>
 
   <h2>반복 추이</h2>
   <div class="panel"><svg viewBox="0 0 760 260" class="chart" role="img" aria-label="반복별 점수 합계와 cost 추이">
     <line x1="46" y1="214" x2="714" y2="214" stroke="var(--grid)" stroke-width="1"/><text x="38" y="218" text-anchor="end" class="svg-axis">386</text><line x1="46" y1="166.5" x2="714" y2="166.5" stroke="var(--grid)" stroke-width="1"/><text x="38" y="170.5" text-anchor="end" class="svg-axis">390</text><line x1="46" y1="119" x2="714" y2="119" stroke="var(--grid)" stroke-width="1"/><text x="38" y="123" text-anchor="end" class="svg-axis">394</text><line x1="46" y1="71.5" x2="714" y2="71.5" stroke="var(--grid)" stroke-width="1"/><text x="38" y="75.5" text-anchor="end" class="svg-axis">397</text><line x1="46" y1="24" x2="714" y2="24" stroke="var(--grid)" stroke-width="1"/><text x="38" y="28" text-anchor="end" class="svg-axis">401</text><rect x="20" y="150.66666666666669" width="52" height="63.333333333333314" rx="4" fill="var(--blue)" opacity="0.9"/>
-      <text x="46" y="143.66666666666669" text-anchor="middle" class="svg-lbl">391</text><rect x="354" y="87.33333333333334" width="52" height="126.66666666666666" rx="4" fill="var(--emerald)" opacity="0.9"/>
-      <text x="380" y="80.33333333333334" text-anchor="middle" class="svg-lbl">396</text><rect x="688" y="36.66666666666666" width="52" height="177.33333333333334" rx="4" fill="var(--emerald)" opacity="0.9"/>
+      <text x="46" y="143.66666666666669" text-anchor="middle" class="svg-lbl">391</text><rect x="242.66666666666663" y="87.33333333333334" width="52" height="126.66666666666666" rx="4" fill="var(--emerald)" opacity="0.9"/>
+      <text x="268.66666666666663" y="80.33333333333334" text-anchor="middle" class="svg-lbl">396</text><rect x="465.3333333333333" y="36.66666666666666" width="52" height="177.33333333333334" rx="4" fill="var(--emerald)" opacity="0.9"/>
+      <text x="491.3333333333333" y="29.666666666666657" text-anchor="middle" class="svg-lbl">400</text><rect x="688" y="36.66666666666666" width="52" height="177.33333333333334" rx="4" fill="var(--muted)" opacity="0.35"/>
       <text x="714" y="29.666666666666657" text-anchor="middle" class="svg-lbl">400</text>
-    <path d="M46,72.87681159420313 L380,79.99825087456293 L714,141.7173913043479" fill="none" stroke="var(--amber)" stroke-width="2.5"/><circle cx="46" cy="72.87681159420313" r="4" fill="var(--amber)"/><text x="46" y="63.87681159420313" text-anchor="middle" class="svg-cost">2059</text><circle cx="380" cy="79.99825087456293" r="4" fill="var(--amber)"/><text x="380" y="70.99825087456293" text-anchor="middle" class="svg-cost">2056</text><circle cx="714" cy="141.7173913043479" r="4" fill="var(--amber)"/><text x="714" y="132.7173913043479" text-anchor="middle" class="svg-cost">2030</text><text x="46" y="244" text-anchor="middle" class="svg-axis">baseline</text><text x="380" y="244" text-anchor="middle" class="svg-axis">iter 1</text><text x="714" y="244" text-anchor="middle" class="svg-axis">iter 2</text>
+    <path d="M46,171.83687943262407 L268.66666666666663,173.96453900709216 L491.3333333333333,192.4042553191489 L714,39.92198581560271" fill="none" stroke="var(--amber)" stroke-width="2.5"/><circle cx="46" cy="171.83687943262407" r="4" fill="var(--amber)"/><text x="46" y="162.83687943262407" text-anchor="middle" class="svg-cost">2059</text><circle cx="268.66666666666663" cy="173.96453900709216" r="4" fill="var(--amber)"/><text x="268.66666666666663" y="164.96453900709216" text-anchor="middle" class="svg-cost">2056</text><circle cx="491.3333333333333" cy="192.4042553191489" r="4" fill="var(--amber)"/><text x="491.3333333333333" y="183.4042553191489" text-anchor="middle" class="svg-cost">2030</text><circle cx="714" cy="39.92198581560271" r="4" fill="var(--amber)"/><text x="714" y="30.92198581560271" text-anchor="middle" class="svg-cost">2245</text><text x="46" y="244" text-anchor="middle" class="svg-axis">baseline</text><text x="268.66666666666663" y="244" text-anchor="middle" class="svg-axis">iter 1</text><text x="491.3333333333333" y="244" text-anchor="middle" class="svg-axis">iter 2</text><text x="714" y="244" text-anchor="middle" class="svg-axis">iter 3</text>
     <text x="46" y="15" class="svg-axis">categoryScoreSum /400 · 막대</text>
     <text x="714" y="15" text-anchor="end" class="svg-axis" fill="var(--amber)">cost · 선 (낮을수록 좋음)</text>
   </svg></div>
@@ -213,6 +212,11 @@ node scripts/perf/lighthouse-run.mjs --label dash --routes /dashboard,/dashboard
           <span class="pill">400/400 <span class="up">(+4)</span> · cost 2030 <span class="up">(−26)</span></span></div>
         <div class="muted small">The only best-practices deduction was a console error from a 404 on /favicon.ico; adding an App Router icon.svg makes the document declare an icon so Chrome stops requesting the missing favicon, clearing the error and raising bestPractices 96 to 100.</div>
         <div class="tl-files"><code>app/icon.svg</code> <span class="ftag">신규</span></div>
+      </div></div><div class="tl-item no"><div class="tl-dot"></div><div class="tl-body">
+        <div class="tl-head"><b>iter 3</b> · .browserslistrc modern targets (legacy JS 제거 시도) <span class="badge no">reverted</span>
+          <span class="pill">400/400 · cost 2245</span></div>
+        <div class="muted small">modern 브라우저 타깃으로 Next/SWC의 legacy 트랜스파일을 건너뛰게 하려 했으나, legacyJsBytes가 11712→11712로 전혀 변하지 않음 — Next 15는 browserslist로 legacy 폴리필을 제거하지 않는다. cost 변동(+211)은 LCP 측정 노이즈.</div>
+        <div class="tl-files"><code>.browserslistrc</code> <span class="ftag">신규</span></div>
       </div></div></div>
 
   <div class="two" style="margin-top:8px">

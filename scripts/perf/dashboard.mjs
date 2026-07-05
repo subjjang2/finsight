@@ -192,18 +192,11 @@ async function main() {
       impact: 'categoryScoreSum 391 → 400 확정, 코드 회귀 없음(정밀 커밋).',
     },
     {
-      pri: 'next', priLabel: '다음', effort: '15분 + 루프',
-      title: `남은 cost를 줄인다 — legacy JS ${legacyKiB} KiB 제거`,
-      why: `점수는 만점이지만 modern 브라우저에 불필요한 폴리필/트랜스파일이 ${legacyKiB} KiB 실려 cost를 올립니다. <code>.browserslistrc</code>로 타깃을 최신으로 좁히면 Next/SWC가 legacy 변환을 건너뜁니다.`,
-      how: `# .browserslistrc 생성\nprintf "chrome >= 111\\nedge >= 111\\nfirefox >= 111\\nsafari >= 16.4\\n" > .browserslistrc\n# 그리고 루프로 검증(개선 시 자동 keep):\nWorkflow({ scriptPath: ".claude/workflows/autoperf.js", args: { routes: "/", targetSum: 400 } })`,
-      impact: `unused JS ${unusedKiB} KiB·legacy ${legacyKiB} KiB 축소 → cost 추가 하락, 초기 로드 소폭 개선.`,
-    },
-    {
       pri: 'next', priLabel: '다음', effort: '1시간',
-      title: '실사용 화면(/dashboard)으로 루프를 확장한다',
-      why: '랜딩은 이미 만점입니다. 유저가 실제 오래 머무는 곳은 차트·업로드가 있는 <code>/dashboard</code>이고 여기에 진짜 개선 여지가 있습니다. 단 인증이 필요합니다.',
-      how: `# 1) 하네스에 세션 쿠키 주입 옵션 추가(lighthouse extraHeaders 또는 로그인 스텝)\n# 2) 인증된 상태로 측정\nnode scripts/perf/lighthouse-run.mjs --label dash --routes /dashboard,/dashboard/trend --runs 3`,
-      impact: '실사용 체감 성능(LCP·TBT) 최적화. 개선 폭이 가장 클 후보.',
+      title: '실사용 화면(/dashboard)으로 루프를 확장한다 — 남은 유일한 실질 지렛대',
+      why: '랜딩 <code>/</code>은 4카테고리 만점 + 모든 CWV good 상태로 사실상 최적입니다. 유저가 오래 머무는 곳은 차트·업로드가 있는 <code>/dashboard</code>이고, 진짜 개선 여지는 거기 있습니다. 단 인증이 필요합니다.',
+      how: `# 1) 하네스에 세션 쿠키 주입(lighthouse extraHeaders) 또는 E2E_LOCAL 우회 로그인 스텝 추가\n# 2) 인증 상태로 측정 후 루프\nnode scripts/perf/lighthouse-run.mjs --label dash --routes /dashboard,/dashboard/trend --runs 3`,
+      impact: '실사용 체감 성능(LCP·TBT·번들) 최적화. 개선 폭이 가장 클 후보.',
     },
     {
       pri: 'later', priLabel: '선택', effort: '30분',
@@ -211,6 +204,13 @@ async function main() {
       why: '로컬 prod 빌드는 네트워크·CDN을 제외합니다. Railway 배포 URL을 측정하면 현실 점수를 얻고, 주기 실행으로 회귀를 조기에 잡습니다.',
       how: `# 배포 후 실 URL 측정 (하네스에 --url 원격 지원 추가 후)\n# 정기 실행은 /schedule 또는 CI 스텝으로 perf-autoloop 스킬 트리거`,
       impact: 'CDN 포함 현실 점수 + 성능 회귀 조기 경보.',
+    },
+    {
+      pri: 'skip', priLabel: '배제됨', effort: '실측 완료',
+      title: `하지 말 것 — .browserslistrc로 legacy JS(${legacyKiB} KiB) 제거는 효과 없음`,
+      why: `iter 3에서 실측: modern 타깃 <code>.browserslistrc</code>를 넣어도 legacyJsBytes가 ${bestFull ? bestFull.metrics.legacyJsBytes : 11712}→${bestFull ? bestFull.metrics.legacyJsBytes : 11712}로 <b>전혀 변하지 않음</b>. Next 15는 이 폴리필을 browserslist로 제거하지 않습니다. 루프가 자동 반려했습니다.`,
+      how: `# 시도했다가 revert된 접근 — 반복하지 마세요.\n# 남은 unused JS ${unusedKiB} KiB는 이미 모든 CWV가 good이라 ROI가 낮습니다.`,
+      impact: '가짜 개선 후보 제거 → 시간 절약. (autoresearch 루프의 음성 결과도 자산)',
     },
   ];
   const actionHtml = actions.map((a, i) => `
@@ -294,11 +294,11 @@ async function main() {
   .flow{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:14px;overflow-x:auto;white-space:nowrap}
   .acts{display:flex;flex-direction:column;gap:12px}
   .act{display:grid;grid-template-columns:auto 1fr;gap:16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px 20px;border-left:4px solid var(--muted)}
-  .act.now{border-left-color:var(--emerald)}.act.next{border-left-color:var(--amber)}.act.later{border-left-color:var(--blue)}
+  .act.now{border-left-color:var(--emerald)}.act.next{border-left-color:var(--amber)}.act.later{border-left-color:var(--blue)}.act.skip{border-left-color:var(--red);opacity:.82}
   .act-rank{width:30px;height:30px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-weight:700;font-family:'JetBrains Mono',monospace;font-size:14px}
   .act-head{display:flex;flex-wrap:wrap;align-items:center;gap:9px;margin-bottom:5px;font-size:15px}
   .pri{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;text-transform:uppercase;letter-spacing:.04em}
-  .pri.now{background:var(--emerald);color:#03130c}.pri.next{background:color-mix(in srgb,var(--amber) 22%,transparent);color:var(--amber)}.pri.later{background:color-mix(in srgb,var(--blue) 22%,transparent);color:var(--blue)}
+  .pri.now{background:var(--emerald);color:#03130c}.pri.next{background:color-mix(in srgb,var(--amber) 22%,transparent);color:var(--amber)}.pri.later{background:color-mix(in srgb,var(--blue) 22%,transparent);color:var(--blue)}.pri.skip{background:color-mix(in srgb,var(--red) 20%,transparent);color:var(--red)}
   .eff{font-size:11px;color:var(--muted);font-family:'JetBrains Mono',monospace}
   .act-why{margin-bottom:8px}.act-why code{background:var(--surface2);padding:1px 5px;border-radius:4px}
   .act-impact{font-size:12px;margin-top:8px}.act-impact .muted{text-transform:uppercase;letter-spacing:.04em;font-size:10px;margin-right:6px}
@@ -336,7 +336,7 @@ async function main() {
   <div class="cards">
     <div class="card"><div class="k">categoryScoreSum</div><div class="v">${best.categoryScoreSum}<small>/400</small></div><div class="d up">▲ ${sumDelta}</div></div>
     <div class="card"><div class="k">cost (낮을수록 좋음)</div><div class="v">${best.totalCost}</div><div class="d up">▼ ${costDelta} (${costPct}%)</div></div>
-    <div class="card"><div class="k">채택 / 시도</div><div class="v">${acceptedCount}<small>/${iters.length}</small></div><div class="d muted">전부 첫 시도에 채택</div></div>
+    <div class="card"><div class="k">채택 / 시도</div><div class="v">${acceptedCount}<small>/${iters.length}</small></div><div class="d muted">${acceptedCount}건 채택 · ${iters.length - acceptedCount}건 반려</div></div>
     <div class="card"><div class="k">LCP</div><div class="v">${bestFull ? ms(bestFull.metrics.lcp) : '—'}</div><div class="d up">good &lt; 2.5 s</div></div>
   </div>
 
