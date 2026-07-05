@@ -1,5 +1,11 @@
+import type { Metadata } from "next";
 import { LoginForm } from "./login-form";
 import { getPostAuthRedirectPath } from "../../../lib/auth/validation";
+
+// 로그인 화면은 SEO 가치가 없고 중복 콘텐츠라 인덱싱하지 않는다.
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 type LoginPageProps = {
   searchParams: Promise<{

@@ -1,10 +1,16 @@
 import type { ReactNode } from "react";
+import type { Metadata } from "next";
 import { DashboardShell } from "../../components/shell";
 import { currentPeriod } from "../../lib/entitlements";
 import { createServerClient } from "../../lib/supabase/server";
 import { FREE_MONTHLY_LIMIT, PRO_FAIR_USE_LIMIT } from "../../types/tier";
 
 export const dynamic = "force-dynamic";
+
+// 인증 게이트 뒤 개인 금융 화면 — 검색 인덱싱 금지.
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const supabase = await createServerClient();
