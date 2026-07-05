@@ -13,6 +13,12 @@ phases/**/step*-output.json
 # claude session-local logs
 .claude/audit.jsonl
 
+# lighthouse perf harness outputs
+reports/perf/
+
+# harness eval live-run reports
+eval/harness/reports/
+
 # local deploy/reset scratch — contains secrets, never commit
 railway-vars.env
 reset_db.sql
@@ -21,3 +27,4 @@ reset_db.sql
 __pycache__/
 .pytest_cache/
 *.py[cod]
+.env.local

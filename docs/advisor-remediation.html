@@ -1,0 +1,391 @@
+<title>finsight · DB 보안·성능 개선 제안</title>
+<style>
+  :root {
+    --bg: #0b100d;
+    --surface: #121a15;
+    --surface-2: #17211b;
+    --line: #24312a;
+    --line-soft: #1c space;
+    --line-soft: #1b2620;
+    --text: #e7f0ea;
+    --text-dim: #9db0a5;
+    --text-faint: #6d8177;
+    --accent: #34d399;
+    --accent-deep: #10b981;
+    --sev-warn: #f2b34b;
+    --sev-info: #5aa9e6;
+    --sev-crit: #f0776b;
+    --ok: #3fce8f;
+    --mono: ui-monospace, "JetBrains Mono", "SFMono-Regular", "Cascadia Code", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f2f5f2;
+      --surface: #ffffff;
+      --surface-2: #f6faf7;
+      --line: #dde6e0;
+      --line-soft: #e6ede8;
+      --text: #10201a;
+      --text-dim: #4a5c53;
+      --text-faint: #7c8f85;
+      --accent: #0f9d67;
+      --accent-deep: #0b7d51;
+      --sev-warn: #b7791f;
+      --sev-info: #2f7fc0;
+      --sev-crit: #c8483b;
+      --ok: #0f9d67;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b100d; --surface: #121a15; --surface-2: #17211b; --line: #24312a;
+    --line-soft: #1b2620; --text: #e7f0ea; --text-dim: #9db0a5; --text-faint: #6d8177;
+    --accent: #34d399; --accent-deep: #10b981; --sev-warn: #f2b34b; --sev-info: #5aa9e6;
+    --sev-crit: #f0776b; --ok: #3fce8f;
+  }
+  :root[data-theme="light"] {
+    --bg: #f2f5f2; --surface: #ffffff; --surface-2: #f6faf7; --line: #dde6e0;
+    --line-soft: #e6ede8; --text: #10201a; --text-dim: #4a5c53; --text-faint: #7c8f85;
+    --accent: #0f9d67; --accent-deep: #0b7d51; --sev-warn: #b7791f; --sev-info: #2f7fc0;
+    --sev-crit: #c8483b; --ok: #0f9d67;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  .wrap {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    line-height: 1.6;
+    min-height: 100vh;
+    padding: clamp(20px, 5vw, 64px) clamp(16px, 5vw, 40px) 80px;
+  }
+  .page { max-width: 880px; margin: 0 auto; }
+
+  /* header */
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 14px;
+  }
+  h1 {
+    font-size: clamp(28px, 5vw, 42px);
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+    font-weight: 680;
+    margin: 0 0 16px;
+    text-wrap: balance;
+  }
+  .lede { color: var(--text-dim); font-size: 17px; max-width: 60ch; margin: 0; }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: 8px 20px;
+    margin-top: 22px; padding-top: 18px;
+    border-top: 1px solid var(--line);
+    font-family: var(--mono); font-size: 12.5px; color: var(--text-faint);
+  }
+  .meta b { color: var(--text-dim); font-weight: 500; }
+
+  section { margin-top: clamp(38px, 7vw, 60px); }
+  h2 {
+    font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--text-faint); font-weight: 600; margin: 0 0 20px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  h2::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+  /* stat row */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media (max-width: 620px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+  .stat {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 12px; padding: 18px 16px;
+  }
+  .stat .n { font-size: 30px; font-weight: 680; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+  .stat.fix .n { color: var(--accent); }
+  .stat.keep .n { color: var(--text-dim); }
+  .stat.defer .n { color: var(--sev-info); }
+  .stat.manual .n { color: var(--sev-warn); }
+  .stat .l { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
+
+  /* pipeline */
+  .pipe { display: flex; flex-direction: column; gap: 2px; }
+  .step {
+    display: grid; grid-template-columns: 26px 1fr auto; gap: 14px; align-items: start;
+    padding: 14px 16px; background: var(--surface); border: 1px solid var(--line);
+  }
+  .pipe .step:first-child { border-radius: 12px 12px 0 0; }
+  .pipe .step:last-child { border-radius: 0 0 12px 12px; }
+  .pipe .step + .step { border-top: none; }
+  .dot {
+    width: 20px; height: 20px; border-radius: 50%; margin-top: 2px;
+    display: grid; place-items: center; font-size: 12px; font-weight: 700;
+    font-family: var(--mono);
+  }
+  .dot.done { background: color-mix(in srgb, var(--ok) 20%, transparent); color: var(--ok); border: 1px solid color-mix(in srgb, var(--ok) 45%, transparent); }
+  .dot.now { background: color-mix(in srgb, var(--sev-warn) 20%, transparent); color: var(--sev-warn); border: 1px solid color-mix(in srgb, var(--sev-warn) 50%, transparent); }
+  .dot.wait { background: transparent; color: var(--text-faint); border: 1px dashed var(--line); }
+  .step .t { font-weight: 580; font-size: 15px; }
+  .step .d { color: var(--text-dim); font-size: 13.5px; margin-top: 2px; }
+  .step .s {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em;
+    text-transform: uppercase; align-self: center; white-space: nowrap;
+  }
+  .s.done { color: var(--ok); }
+  .s.now { color: var(--sev-warn); }
+  .s.wait { color: var(--text-faint); }
+
+  /* findings */
+  .finding {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 12px; padding: 0; overflow: hidden; margin-bottom: 12px;
+  }
+  .finding > .head {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    padding: 15px 18px; border-left: 3px solid var(--bar, var(--line));
+  }
+  .finding.warn > .head { --bar: var(--sev-warn); }
+  .finding.info > .head { --bar: var(--sev-info); }
+  .code { font-family: var(--mono); font-size: 12px; color: var(--text-faint); }
+  .fname { font-family: var(--mono); font-size: 13.5px; color: var(--text); font-weight: 500; }
+  .finding .body {
+    padding: 0 18px 16px 21px; color: var(--text-dim); font-size: 14px;
+  }
+  .finding .body p { margin: 6px 0; }
+  .finding .body .fix { color: var(--text); }
+  .finding .body .fix b { color: var(--accent); font-weight: 600; }
+
+  .chip {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em;
+    text-transform: uppercase; padding: 3px 8px; border-radius: 999px;
+    border: 1px solid currentColor; font-weight: 600; white-space: nowrap;
+  }
+  .chip.warn { color: var(--sev-warn); }
+  .chip.info { color: var(--sev-info); }
+  .badge {
+    margin-left: auto; font-family: var(--mono); font-size: 11px; font-weight: 600;
+    letter-spacing: 0.04em; padding: 4px 10px; border-radius: 7px;
+  }
+  .badge.fix { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  .badge.keep { color: var(--text-dim); background: var(--surface-2); border: 1px solid var(--line); }
+  .badge.defer { color: var(--sev-info); background: color-mix(in srgb, var(--sev-info) 13%, transparent); }
+  .badge.manual { color: var(--sev-warn); background: color-mix(in srgb, var(--sev-warn) 14%, transparent); }
+
+  code.inline {
+    font-family: var(--mono); font-size: 0.88em; background: var(--surface-2);
+    border: 1px solid var(--line-soft); border-radius: 5px; padding: 1px 5px;
+    color: var(--text); word-break: break-word;
+  }
+
+  /* action cards */
+  .action {
+    display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: start;
+    background: var(--surface); border: 1px solid var(--line);
+    border-left: 3px solid var(--sev-warn); border-radius: 12px;
+    padding: 18px 20px; margin-bottom: 12px;
+  }
+  .action .num {
+    font-family: var(--mono); font-size: 15px; font-weight: 700; color: var(--sev-warn);
+    width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center;
+    background: color-mix(in srgb, var(--sev-warn) 14%, transparent);
+  }
+  .action h3 { margin: 2px 0 6px; font-size: 16px; font-weight: 600; }
+  .action p { margin: 0; color: var(--text-dim); font-size: 14px; }
+  .action .path {
+    display: inline-block; margin-top: 10px; font-family: var(--mono); font-size: 12.5px;
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: 7px;
+    padding: 7px 11px; color: var(--accent); overflow-x: auto; max-width: 100%;
+  }
+
+  .foot {
+    margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line);
+    color: var(--text-faint); font-size: 12.5px; font-family: var(--mono);
+  }
+</style>
+
+<div class="wrap">
+  <div class="page">
+
+    <header>
+      <p class="eyebrow">Supabase Advisor · Remediation Plan</p>
+      <h1>DB 보안·성능 점검 결과와 개선 제안</h1>
+      <p class="lede">Supabase가 운영 DB를 자동 점검해 알려준 항목을 코드와 대조해 선별했습니다. 실제로 고칠 4건은 마이그레이션으로 준비했고, 손대지 않은 항목은 이유를 함께 적었습니다.</p>
+      <div class="meta">
+        <span><b>프로젝트</b> mejydtidmhvaklaleigp</span>
+        <span><b>리전</b> ap-southeast-1</span>
+        <span><b>점검일</b> 2026-07-05</span>
+        <span><b>스캔</b> security + performance</span>
+      </div>
+    </header>
+
+    <section>
+      <h2>한눈에</h2>
+      <div class="stats">
+        <div class="stat fix"><div class="n">4</div><div class="l">고칠 항목<br>준비 완료</div></div>
+        <div class="stat keep"><div class="n">2</div><div class="l">설계상 정상<br>조치 불필요</div></div>
+        <div class="stat defer"><div class="n">1</div><div class="l">판단 보류<br>트래픽 관찰</div></div>
+        <div class="stat manual"><div class="n">2</div><div class="l">네가 직접<br>할 일</div></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>진행 상태</h2>
+      <div class="pipe">
+        <div class="step">
+          <div class="dot done">✓</div>
+          <div><div class="t">Advisor 스캔</div><div class="d">보안·성능 자동 점검 결과 수신</div></div>
+          <div class="s done">완료</div>
+        </div>
+        <div class="step">
+          <div class="dot done">✓</div>
+          <div><div class="t">코드 대조·선별</div><div class="d">함수·RLS·호출 경로를 소스와 대조해 오탐 제거</div></div>
+          <div class="s done">완료</div>
+        </div>
+        <div class="step">
+          <div class="dot done">✓</div>
+          <div><div class="t">마이그레이션 작성</div><div class="d"><code class="inline">0005_advisor_remediation.sql</code> 생성</div></div>
+          <div class="s done">완료</div>
+        </div>
+        <div class="step">
+          <div class="dot now">›</div>
+          <div><div class="t">운영 DB 반영</div><div class="d">배포 방식 선택 대기 — 아직 운영 DB엔 미적용</div></div>
+          <div class="s now">대기</div>
+        </div>
+        <div class="step">
+          <div class="dot wait">·</div>
+          <div><div class="t">재점검</div><div class="d">반영 후 Advisor 재실행으로 해소 확인</div></div>
+          <div class="s wait">예정</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>보안 항목</h2>
+
+      <div class="finding warn">
+        <div class="head">
+          <span class="chip warn">Warn</span>
+          <span class="fname">handle_new_user()</span>
+          <span class="badge fix">고침</span>
+        </div>
+        <div class="body">
+          <p>가입 시 프로필을 자동 생성하는 내부 트리거 함수가 <code class="inline">/rest/v1/rpc/</code> 경로로 외부에서도 직접 호출 가능한 상태였습니다. 원래 가입 시 자동 실행만 돼야 합니다.</p>
+          <p class="fix">→ <b>API 역할(anon·authenticated)의 실행 권한 회수.</b> 트리거는 권한과 무관하게 동작하므로 가입 기능엔 영향 없음.</p>
+        </div>
+      </div>
+
+      <div class="finding warn">
+        <div class="head">
+          <span class="chip warn">Warn</span>
+          <span class="fname">prevent_profile_tier_update()</span>
+          <span class="badge fix">고침</span>
+        </div>
+        <div class="body">
+          <p>요금제(free/pro)를 유저가 임의로 못 바꾸게 막는 함수의 <code class="inline">search_path</code>가 고정돼 있지 않아, 이론상 경로 조작 여지가 있었습니다.</p>
+          <p class="fix">→ <b><code class="inline">search_path = ''</code> 로 고정.</b> 동작은 동일.</p>
+        </div>
+      </div>
+
+      <div class="finding warn">
+        <div class="head">
+          <span class="chip warn">Warn</span>
+          <span class="fname">consume / refund_analysis_credit()</span>
+          <span class="badge keep">설계상 정상</span>
+        </div>
+        <div class="body">
+          <p>로그인 유저가 실행 가능한 <code class="inline">SECURITY DEFINER</code> 함수로 표시됐지만, 라우트가 유저 세션으로 호출하며 내부에서 <code class="inline">auth.uid()</code> 자기 행만 조작합니다. 권한이 필요해 유지합니다.</p>
+        </div>
+      </div>
+
+      <div class="finding info">
+        <div class="head">
+          <span class="chip info">Info</span>
+          <span class="fname">webhook_events</span>
+          <span class="badge keep">설계상 정상</span>
+        </div>
+        <div class="body">
+          <p>RLS는 켜져 있지만 정책이 없다고 표시됐습니다. 이 테이블은 결제 웹훅이 service-role로만 쓰는 전용 테이블로, 일반 유저 접근을 0으로 두는 것이 의도된 상태입니다.</p>
+        </div>
+      </div>
+
+      <div class="finding warn">
+        <div class="head">
+          <span class="chip warn">Warn</span>
+          <span class="fname">Leaked Password Protection</span>
+          <span class="badge manual">직접 조치</span>
+        </div>
+        <div class="body">
+          <p>다른 사이트에서 유출된 비밀번호(HaveIBeenPwned 대조)로 가입·변경하는 것을 막는 기능이 꺼져 있습니다. 우리는 이메일+비번 가입을 받으므로 켜는 것이 좋습니다.</p>
+          <p class="fix">→ SQL로는 불가. <b>Auth 대시보드에서 스위치로 켜야 합니다</b> (아래 할 일 ① 참조).</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>성능 항목</h2>
+
+      <div class="finding warn">
+        <div class="head">
+          <span class="chip warn">Warn ×14</span>
+          <span class="fname">RLS 권한 검사 매 행 재평가</span>
+          <span class="badge fix">고침</span>
+        </div>
+        <div class="body">
+          <p>"이 데이터가 네 것 맞아?"를 확인하는 규칙이 데이터 한 줄마다 <code class="inline">auth.uid()</code>를 다시 계산합니다. 유저·데이터가 많아질수록 느려집니다.</p>
+          <p class="fix">→ <b><code class="inline">(select auth.uid())</code> 로 감싸 문장당 1회만 계산.</b> 14개 정책 전부 적용, 동작 동일.</p>
+        </div>
+      </div>
+
+      <div class="finding info">
+        <div class="head">
+          <span class="chip info">Info ×2</span>
+          <span class="fname">transactions · insights .upload_id</span>
+          <span class="badge fix">고침</span>
+        </div>
+        <div class="body">
+          <p>거래·분석 데이터가 어느 업로드에 속하는지 찾을 때 색인이 없어, 업로드 삭제·조인 시 느려질 수 있습니다.</p>
+          <p class="fix">→ <b><code class="inline">upload_id</code> 커버링 인덱스 2개 추가.</b></p>
+        </div>
+      </div>
+
+      <div class="finding info">
+        <div class="head">
+          <span class="chip info">Info ×2</span>
+          <span class="fname">미사용 인덱스 2건</span>
+          <span class="badge defer">판단 보류</span>
+        </div>
+        <div class="body">
+          <p>한 번도 안 쓰인 인덱스로 표시됐지만, 서비스가 생성 6일차라 트래픽이 없어 "미사용"일 뿐 불필요한 건 아닙니다. 대시보드 목록 조회에 실제로 필요합니다.</p>
+          <p class="fix">→ <b>지금 삭제하지 않고, 실사용 데이터가 쌓인 뒤 재확인.</b></p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>네가 할 일</h2>
+
+      <div class="action">
+        <div class="num">1</div>
+        <div>
+          <h3>유출 비밀번호 차단 켜기</h3>
+          <p>코드로 못 바꾸는 Auth 설정입니다. 대시보드에서 스위치 하나만 켜면 됩니다.</p>
+          <span class="path">Dashboard → Authentication → Sign In / Providers → Leaked password protection</span>
+        </div>
+      </div>
+
+      <div class="action">
+        <div class="num">2</div>
+        <div>
+          <h3>마이그레이션 반영 방식 결정</h3>
+          <p>고칠 4건은 <code class="inline">0005_advisor_remediation.sql</code>에 준비돼 있고, 운영 DB엔 아직 미적용입니다. 내가 바로 반영할지, 네 배포 흐름(<code class="inline">supabase db push</code>)으로 올릴지 골라주세요.</p>
+          <span class="path">supabase/migrations/0005_advisor_remediation.sql</span>
+        </div>
+      </div>
+    </section>
+
+    <p class="foot">finsight · Supabase advisor remediation · 고침 4 · 유지 2 · 보류 1 · 직접조치 2</p>
+
+  </div>
+</div>

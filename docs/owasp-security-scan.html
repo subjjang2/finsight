@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OWASP Top 10:2025 · Security Scan — finsight</title>
+    <style>
+      :root {
+        --bg: #0d1117; --surface: #161b22; --surface-2: #1c2230;
+        --border: #2b3240; --text: #e6edf3; --text-2: #9aa7b6; --text-3: #6b7684;
+        --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Consolas, monospace;
+        --sans: "Inter", -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+        --crit: #f85149; --crit-bg: #2b1416; --high: #f0883e; --high-bg: #2a1a0e;
+        --med: #d29922; --med-bg: #2a2210; --low: #58a6ff; --low-bg: #10233d;
+        --info: #8b949e; --info-bg: #1a1f26; --pass: #3fb950; --pass-bg: #0f2417;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #f6f8fa; --surface: #ffffff; --surface-2: #f6f8fa;
+          --border: #d0d7de; --text: #1f2328; --text-2: #57606a; --text-3: #8c959f;
+          --crit: #cf222e; --crit-bg: #ffebe9; --high: #bc4c00; --high-bg: #fff1e5;
+          --med: #9a6700; --med-bg: #fff8c5; --low: #0969da; --low-bg: #ddf4ff;
+          --info: #6e7781; --info-bg: #eef1f4; --pass: #1a7f37; --pass-bg: #dafbe1;
+        }
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+        font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+      .page { max-width: 1100px; margin: 0 auto; padding: 40px 28px 72px; }
+      a { color: var(--low); }
+
+      .header { display: flex; justify-content: space-between; align-items: flex-end;
+        gap: 24px; flex-wrap: wrap; border-bottom: 1px solid var(--border);
+        padding-bottom: 20px; margin-bottom: 28px; }
+      .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .14em;
+        text-transform: uppercase; color: var(--text-3); margin-bottom: 8px; }
+      h1 { font-size: 26px; font-weight: 700; margin: 0; letter-spacing: -.02em; }
+      .meta { font-family: var(--mono); font-size: 12px; color: var(--text-2);
+        margin-top: 8px; line-height: 1.7; }
+      .badge { display: inline-block; font-family: var(--mono); font-size: 11px;
+        padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border);
+        background: var(--surface-2); color: var(--text-2); }
+
+      .summary { display: grid; grid-template-columns: 200px 1fr; gap: 20px;
+        margin-bottom: 32px; }
+      @media (max-width: 720px) { .summary { grid-template-columns: 1fr; } }
+      .score-card { background: var(--surface); border: 1px solid var(--border);
+        border-radius: 12px; padding: 22px; text-align: center; }
+      .score-num { font-size: 52px; font-weight: 700; line-height: 1;
+        font-variant-numeric: tabular-nums; }
+      .score-lbl { font-family: var(--mono); font-size: 11px; color: var(--text-3);
+        text-transform: uppercase; letter-spacing: .1em; margin-top: 8px; }
+      .sev-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+      @media (max-width: 720px) { .sev-grid { grid-template-columns: repeat(2, 1fr); } }
+      .sev-tile { background: var(--surface); border: 1px solid var(--border);
+        border-radius: 10px; padding: 16px; }
+      .sev-tile .n { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; }
+      .sev-tile .l { font-family: var(--mono); font-size: 11px; text-transform: uppercase;
+        letter-spacing: .08em; margin-top: 4px; }
+      .sev-crit { color: var(--crit); } .sev-high { color: var(--high); }
+      .sev-med { color: var(--med); } .sev-low { color: var(--low); } .sev-info { color: var(--info); }
+
+      h2 { font-size: 15px; font-weight: 600; margin: 36px 0 14px;
+        font-family: var(--mono); text-transform: uppercase; letter-spacing: .08em;
+        color: var(--text-2); }
+      .cats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+      @media (max-width: 720px) { .cats { grid-template-columns: 1fr; } }
+      .cat { display: flex; align-items: center; gap: 12px; background: var(--surface);
+        border: 1px solid var(--border); border-left-width: 3px; border-radius: 8px;
+        padding: 12px 14px; }
+      .cat .id { font-family: var(--mono); font-size: 12px; color: var(--text-3);
+        min-width: 62px; }
+      .cat .nm { flex: 1; font-size: 14px; }
+      .cat .st { font-family: var(--mono); font-size: 11px; text-transform: uppercase;
+        letter-spacing: .06em; padding: 2px 8px; border-radius: 5px; }
+      .st-fail { background: var(--crit-bg); color: var(--crit); }
+      .st-warn { background: var(--med-bg); color: var(--med); }
+      .st-pass { background: var(--pass-bg); color: var(--pass); }
+      .st-na { background: var(--info-bg); color: var(--info); }
+      .cat-fail { border-left-color: var(--crit); } .cat-warn { border-left-color: var(--med); }
+      .cat-pass { border-left-color: var(--pass); } .cat-na { border-left-color: var(--border); }
+
+      .finding { background: var(--surface); border: 1px solid var(--border);
+        border-left-width: 4px; border-radius: 10px; padding: 18px 20px; margin-bottom: 14px; }
+      .f-crit { border-left-color: var(--crit); } .f-high { border-left-color: var(--high); }
+      .f-med { border-left-color: var(--med); } .f-low { border-left-color: var(--low); }
+      .f-info { border-left-color: var(--info); }
+      .f-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+      .f-sev { font-family: var(--mono); font-size: 10px; font-weight: 600; text-transform: uppercase;
+        letter-spacing: .08em; padding: 3px 8px; border-radius: 5px; }
+      .fs-crit { background: var(--crit-bg); color: var(--crit); }
+      .fs-high { background: var(--high-bg); color: var(--high); }
+      .fs-med { background: var(--med-bg); color: var(--med); }
+      .fs-low { background: var(--low-bg); color: var(--low); }
+      .fs-info { background: var(--info-bg); color: var(--info); }
+      .f-cat { font-family: var(--mono); font-size: 11px; color: var(--text-3); }
+      .f-title { font-size: 15px; font-weight: 600; flex: 1 1 100%; margin-top: 2px; }
+      .f-row { font-size: 13px; color: var(--text-2); margin: 8px 0; line-height: 1.6; }
+      .f-row b { color: var(--text); font-weight: 600; }
+      .f-evi { font-family: var(--mono); font-size: 12px; background: var(--surface-2);
+        border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; margin: 8px 0;
+        color: var(--text-2); overflow-x: auto; white-space: pre; }
+      .f-fix { border-top: 1px dashed var(--border); padding-top: 10px; margin-top: 10px; }
+      .empty { color: var(--text-3); font-size: 14px; padding: 20px; text-align: center;
+        border: 1px dashed var(--border); border-radius: 10px; }
+      .foot { margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--border);
+        font-family: var(--mono); font-size: 11px; color: var(--text-3); line-height: 1.8; }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="header">
+        <div>
+          <div class="eyebrow">OWASP Top 10 · 2025</div>
+          <h1>Security Scan Report — finsight</h1>
+          <div class="meta">스캔 대상: C:\dev_new\Saas · 날짜: 2026-07-04<br>소스 49개(TS/TSX) + SQL 마이그레이션 4개 · 스택: Next.js 15 · TypeScript · Supabase(RLS) · Polar</div>
+        </div>
+        <div>
+          <span class="badge">semgrep: 미설치 (정적 분석만)</span>
+          <span class="badge">npm audit: 0 vulns</span>
+          <span class="badge" style="color:var(--pass);border-color:var(--pass)">Medium 2건 수정됨</span>
+        </div>
+      </div>
+
+      <div class="summary">
+        <div class="score-card">
+          <div class="score-num" style="color:var(--pass)">99</div>
+          <div class="score-lbl">Posture / 100</div>
+        </div>
+        <div class="sev-grid">
+          <div class="sev-tile"><div class="n sev-crit">0</div><div class="l sev-crit">Critical</div></div>
+          <div class="sev-tile"><div class="n sev-high">0</div><div class="l sev-high">High</div></div>
+          <div class="sev-tile"><div class="n sev-med">0</div><div class="l sev-med">Medium</div></div>
+          <div class="sev-tile"><div class="n sev-low">1</div><div class="l sev-low">Low</div></div>
+          <div class="sev-tile"><div class="n sev-info">1</div><div class="l sev-info">Info</div></div>
+        </div>
+      </div>
+
+      <h2>Category Overview</h2>
+      <div class="cats">
+        <div class="cat cat-pass"><span class="id">A01</span><span class="nm">Broken Access Control</span><span class="st st-pass">pass</span></div>
+        <div class="cat cat-pass"><span class="id">A02</span><span class="nm">Security Misconfiguration</span><span class="st st-pass">pass</span></div>
+        <div class="cat cat-warn"><span class="id">A03</span><span class="nm">Software Supply Chain Failures</span><span class="st st-warn">warn</span></div>
+        <div class="cat cat-pass"><span class="id">A04</span><span class="nm">Cryptographic Failures</span><span class="st st-pass">pass</span></div>
+        <div class="cat cat-pass"><span class="id">A05</span><span class="nm">Injection</span><span class="st st-pass">pass</span></div>
+        <div class="cat cat-pass"><span class="id">A06</span><span class="nm">Insecure Design</span><span class="st st-pass">pass</span></div>
+        <div class="cat cat-pass"><span class="id">A07</span><span class="nm">Authentication Failures</span><span class="st st-pass">pass</span></div>
+        <div class="cat cat-pass"><span class="id">A08</span><span class="nm">Software or Data Integrity Failures</span><span class="st st-pass">pass</span></div>
+        <div class="cat cat-warn"><span class="id">A09</span><span class="nm">Security Logging &amp; Alerting Failures</span><span class="st st-warn">info</span></div>
+        <div class="cat cat-pass"><span class="id">A10</span><span class="nm">Mishandling of Exceptional Conditions</span><span class="st st-pass">pass</span></div>
+      </div>
+
+      <h2>Findings</h2>
+
+      <div class="finding f-med" style="opacity:.72">
+        <div class="f-head"><span class="f-sev fs-med">Medium</span>
+          <span class="f-cat">A07 Authentication Failures</span>
+          <span class="f-sev" style="background:var(--pass-bg);color:var(--pass)">✓ 수정됨</span>
+          <div class="f-title">E2E 인증 우회 모드에 프로덕션 하드가드 부재</div></div>
+        <div class="f-row"><b>영향</b> <code>isE2E()</code>가 <code>NEXT_PUBLIC_E2E_LOCAL === "1"</code>도 검사한다. <code>NEXT_PUBLIC_*</code> 변수는 <b>빌드타임에 미들웨어/클라이언트 번들로 인라인</b>되므로, 이 값이 켜진 채 프로덕션 빌드가 한 번이라도 생성되면 미들웨어 인증과 모든 영속 계층이 통째로 우회된다. 이때 쿠키 <code>e2e_session=1</code>만 제시하면 누구나 TEST_USER로 인증되어 전 기능에 접근한다. <code>NODE_ENV !== "production"</code> 런타임 가드가 없어 운영자 실수 하나에 전면 인증 우회로 직결된다.</div>
+        <div class="f-evi">lib/e2e.ts:29-36  (isE2E)
+&gt; return process.env.E2E_LOCAL === "1" || process.env.NEXT_PUBLIC_E2E_LOCAL === "1";
+middleware.ts:35  &gt; if (isE2E()) { const authed = cookie(E2E_COOKIE) === "1"; ... }</div>
+        <div class="f-row f-fix"><b>적용된 수정</b> <code>lib/e2e.ts</code>의 <code>isE2E()</code> 첫 분기에 프로덕션 하드가드 추가 + 회귀 테스트(<code>lib/e2e.test.ts</code> "is never true in production") 추가.
+<div class="f-evi">  export function isE2E(): boolean {
+    if (process.env.NODE_ENV === "production") return false;   // ← 추가됨
+    return process.env.E2E_LOCAL === "1" || process.env.NEXT_PUBLIC_E2E_LOCAL === "1";
+  }</div></div>
+      </div>
+
+      <div class="finding f-med" style="opacity:.72">
+        <div class="f-head"><span class="f-sev fs-med">Medium</span>
+          <span class="f-cat">A03 Software Supply Chain Failures</span>
+          <span class="f-sev" style="background:var(--pass-bg);color:var(--pass)">✓ 수정됨</span>
+          <div class="f-title">개발 의존성 취약점 7건 (vitest/vite/esbuild/postcss)</div></div>
+        <div class="f-row"><b>영향</b> <code>npm audit</code>가 Critical 1 · High 1 · Moderate 5를 보고. 전부 <b>devDependencies(테스트/빌드 툴체인)</b>라 <code>output: "standalone"</code> 프로덕션 런타임 번들에는 포함되지 않아 원 심각도(Critical/High)에서 Medium으로 하향한다. 다만 로컬 개발 서버(vite/esbuild)의 임의 파일 읽기·개발서버 CORS 이슈는 개발자 머신에서 악용될 수 있다.</div>
+        <div class="f-evi">CRITICAL vitest  — @vitest/mocker: Vitest UI 서버가 임의 파일 읽기/실행
+HIGH     vite    — Path Traversal(.map) + launch-editor NTLMv2 해시 노출(Windows)
+MODERATE esbuild — 개발서버가 임의 사이트의 요청/응답 열람 허용
+MODERATE postcss — CSS Stringify 미이스케이프 &lt;/style&gt; XSS  (next 경유)
+근거: package-lock.json · npm audit --json</div>
+        <div class="f-row f-fix"><b>적용된 수정</b> vitest를 <b>3</b>으로 상향(vite 7 · esbuild 패치 · @vitest/mocker 동반 해소). vitest 4는 vite 8의 oxc 트랜스포머로 바뀌어 <code>esbuild.jsx</code> 설정이 무시되고 JSX 파싱이 깨지므로(=config 마이그레이션 필요) 감사를 동일하게 0으로 만드는 최소 변경인 3을 선택. next 내부 <code>postcss@8.4.31</code>은 <code>overrides</code>로 <code>^8.5.10</code> 강제(8.5는 호환 마이너).
+<div class="f-evi">npm i -D vitest@^3                      # 4 아님: vite8 oxc가 JSX config 깨뜨림
+# package.json:  "overrides": { "postcss": "^8.5.10" }  (직접 devDep도 ^8.5.10로 정렬)
+결과: npm audit → found 0 vulnerabilities · npm run test → 207 passed · build/lint OK</div></div>
+      </div>
+
+      <div class="finding f-low">
+        <div class="f-head"><span class="f-sev fs-low">Low</span>
+          <span class="f-cat">A03 Software Supply Chain Failures</span>
+          <div class="f-title">GitHub Actions가 가변 메이저 태그로 핀 고정됨</div></div>
+        <div class="f-row"><b>영향</b> CI 워크플로가 <code>actions/checkout@v4</code>·<code>actions/setup-node@v4</code>처럼 이동 가능한 태그를 참조한다. 퍼스트파티 액션이라 위험은 낮지만, 태그는 언제든 다른 커밋을 가리킬 수 있어 공급망 변조 시 CI가 시크릿(<code>ANTHROPIC_API_KEY</code>)을 보유한 채 임의 코드를 실행할 수 있다.</div>
+        <div class="f-evi">.github/workflows/ai-review.yml:60  &gt; - uses: actions/checkout@v4
+.github/workflows/ai-review.yml:64  &gt; - uses: actions/setup-node@v4</div>
+        <div class="f-row f-fix"><b>수정 제안</b> 커밋 SHA로 핀 고정하고 주석에 버전을 남긴다(Dependabot이 SHA 갱신 지원). 예: <code>uses: actions/checkout@&lt;full-sha&gt; # v4.x.x</code></div>
+      </div>
+
+      <div class="finding f-info">
+        <div class="f-head"><span class="f-sev fs-info">Info</span>
+          <span class="f-cat">A09 Security Logging &amp; Alerting Failures</span>
+          <div class="f-title">보안 이벤트 전용 로깅/알림 파이프라인 부재</div></div>
+        <div class="f-row"><b>영향</b> 서버 에러는 <code>console.error</code>로 남고 <b>로그에 크리덴셜/PII가 노출되는 곳은 확인되지 않았다</b>(양호). 다만 인증 실패·권한 거부·비정상 요청량에 대한 전용 감사 로깅과 알림(대량 로그인 실패 탐지 등)은 없다. 인증은 Supabase가 담당하므로 일부는 외부에서 커버되나, 애플리케이션 레벨 이상징후 가시성은 낮다.</div>
+        <div class="f-evi">app/api/analyses/route.ts · uploads/route.ts 등
+&gt; console.error("...failed", error)   // 민감정보 없음, 그러나 중앙 수집/알림 없음</div>
+        <div class="f-row f-fix"><b>수정 제안</b> 구조화 로깅(요청 id 포함)과 인증/인가 실패 이벤트의 중앙 수집·임계 알림을 도입. Railway 로그 드레인 또는 Supabase 로그 + 알림 룰 연동을 검토.</div>
+      </div>
+
+      <div class="foot">
+        OWASP Top 10:2025 · https://owasp.org/Top10/2025/ · generated by owasp-security-scan skill<br>
+        수동확인 4종 커버: A01 접근제어(RLS 전 테이블·소유권 쿼리·tier 트리거·스토리지 폴더 스코프 확인) · A06 설계(advice 쿨다운·원자적 크레딧 미터링·트랜잭션 상한 확인) · A09 로깅(민감정보 로그 노출 없음 확인) · A10 예외(generic error·크레딧 환불·fail-open 없음 확인).<br>
+        참고: semgrep 미설치로 SAST 1차 스캔 생략 — 정적 분석은 소스 정독 기반. `pipx install semgrep` 후 재실행 시 인젝션/시크릿 데이터플로우 커버리지 향상.
+      </div>
+    </div>
+  </body>
+</html>

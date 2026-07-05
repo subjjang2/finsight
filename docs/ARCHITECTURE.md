@@ -12,6 +12,63 @@
 | Anthropic (Claude Sonnet) | CSV 컬럼 매핑 + 거래 분류 | 서버 전용 |
 | Polar | 구독 결제 (Merchant of Record) | access token / webhook secret 서버 전용 |
 
+## 모듈 의존성 그래프
+> 정적 import 의존성(런타임 데이터 흐름이 아니라 "무엇이 무엇을 부르는가"). 변경 영향 분석용.
+
+```mermaid
+flowchart LR
+  subgraph ext["외부 SaaS"]
+    Anthropic["Anthropic<br/>(Claude Sonnet)"]
+    Supabase["Supabase<br/>(Postgres+Auth+RLS)"]
+    Polar["Polar<br/>(결제)"]
+  end
+
+  subgraph api["app/api/* 라우트 핸들러"]
+    uploads["uploads"]
+    analyses["analyses"]
+    advice["advice (Pro)"]
+    checkout["polar/checkout"]
+    webhook["polar/webhook"]
+  end
+
+  mw["middleware.ts<br/>(인증 가드)"]
+
+  subgraph svc["services/"]
+    claude["claude<br/>(server-only)"]
+  end
+
+  subgraph lib["lib/"]
+    csv["csv/* 파싱"]
+    analysis["analysis<br/>(집계·정규화)"]
+    entitlements["entitlements<br/>(한도)"]
+    categories["categories"]
+    bcheckout["billing/checkout<br/>(server-only)"]
+    bpolar["billing/polar<br/>(서명검증)"]
+    sbserver["supabase/server<br/>(anon·RLS)"]
+    sbadmin["supabase/admin<br/>(service-role)"]
+  end
+
+  shared["types/*<br/>(tier·category·mapping·transaction)"]
+
+  uploads --> claude & csv & sbserver
+  analyses --> claude & analysis & entitlements & sbserver
+  advice --> claude & categories & sbserver
+  checkout --> bcheckout & sbserver
+  webhook --> bpolar & sbadmin
+  mw --> sbserver
+  analysis --> csv & entitlements & categories
+
+  claude --> Anthropic
+  sbserver --> Supabase
+  sbadmin --> Supabase
+  bcheckout --> Polar
+  Polar -. 웹훅 인바운드 .-> webhook
+
+  analysis -.-> shared
+  entitlements -.-> shared
+  claude -.-> shared
+```
+
 ## 디렉토리 구조 (루트 기준, `src/` 사용 안 함)
 ```
 app/                  # 페이지 + API 라우트 (App Router)
@@ -51,3 +108,20 @@ Polar 웹훅 → app/api/polar/webhook → service-role Supabase → profiles.ti
 - 서버 상태: Server Components가 user-scoped Supabase로 직접 조회(per-user 페이지는 `force-dynamic`).
 - 클라이언트 상태: 업로드/분석 트리거 등 인터랙션만 `useState`. 전역 상태 라이브러리 없음.
 - 미터링: 분석 성공 시 `profiles`의 월 카운트 +1, Free는 5건 초과 차단. tier는 Polar 웹훅이 갱신.
+
+## 하네스 주입 흐름 (codex `scripts/execute.py`)
+> CLAUDE.md는 Claude Code 전용. 하네스는 AGENTS.md + docs/*.md만 프롬프트에 주입한다.
+
+```mermaid
+flowchart LR
+  agents["AGENTS.md"] --> load
+  docs["docs/*.md<br/>(sorted glob)"] --> load
+  load["_load_guardrails()"] --> preamble["_build_preamble()<br/>(+이전 step 산출물 요약)"]
+  stepmd["phases/{phase}/step{N}.md"] --> prompt
+  preamble --> prompt["prompt"]
+  prompt -- stdin --> codex["codex exec<br/>(bypass sandbox)"]
+  codex --> gen["코드 생성<br/>+ step{N}-output.json"]
+  gen --> verify["_verify_step()<br/>npm run test / lint"]
+  verify -- 통과 --> commit["_commit_step()<br/>git commit"]
+  verify -- 실패 --> prompt
+```

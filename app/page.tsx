@@ -1,9 +1,16 @@
 import type { Metadata } from "next";
+import {
+  SITE_NAME,
+  SITE_TAGLINE,
+  SITE_DESCRIPTION,
+  softwareApplicationJsonLd,
+} from "../lib/seo";
 
 export const metadata: Metadata = {
-  title: "finsight — 카드 명세서 CSV, 1분 만에 지출 인사이트로",
-  description:
-    "카드사 CSV를 그대로 올리면 AI가 컬럼을 인식하고 거래를 분류해 이번 달 지출을 카테고리별로 정리합니다.",
+  // 홈은 타이틀 템플릿(%s | finsight)을 우회해 태그라인 전체를 그대로 노출한다.
+  title: { absolute: `${SITE_NAME} — ${SITE_TAGLINE}` },
+  description: SITE_DESCRIPTION,
+  alternates: { canonical: "/" },
 };
 
 const STEPS = [
@@ -37,6 +44,12 @@ const PREVIEW_CATEGORIES = [
 export default function Home() {
   return (
     <main className="min-h-screen bg-canvas text-ink">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(softwareApplicationJsonLd()),
+        }}
+      />
       <header className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
         <span className="text-sm font-semibold tracking-tight text-ink">
           finsight

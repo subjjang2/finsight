@@ -9,17 +9,25 @@ import {
 } from "./e2e";
 
 const originalFlag = process.env.E2E_LOCAL;
+const originalPublicFlag = process.env.NEXT_PUBLIC_E2E_LOCAL;
+const originalNodeEnv = process.env.NODE_ENV;
+
+function restoreEnv(key: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[key];
+  } else {
+    process.env[key] = value;
+  }
+}
 
 beforeEach(() => {
   resetE2EStore();
 });
 
 afterEach(() => {
-  if (originalFlag === undefined) {
-    delete process.env.E2E_LOCAL;
-  } else {
-    process.env.E2E_LOCAL = originalFlag;
-  }
+  restoreEnv("E2E_LOCAL", originalFlag);
+  restoreEnv("NEXT_PUBLIC_E2E_LOCAL", originalPublicFlag);
+  restoreEnv("NODE_ENV", originalNodeEnv);
 });
 
 describe("isE2E", () => {
@@ -29,6 +37,14 @@ describe("isE2E", () => {
     process.env.E2E_LOCAL = "0";
     expect(isE2E()).toBe(false);
     delete process.env.E2E_LOCAL;
+    expect(isE2E()).toBe(false);
+  });
+
+  it("is never true in production, even with the flags set", () => {
+    process.env.NODE_ENV = "production";
+    process.env.E2E_LOCAL = "1";
+    expect(isE2E()).toBe(false);
+    process.env.NEXT_PUBLIC_E2E_LOCAL = "1";
     expect(isE2E()).toBe(false);
   });
 });
