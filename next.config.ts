@@ -61,6 +61,20 @@ const nextConfig: NextConfig = {
   // Enabling it in `next dev` breaks App Router + middleware with
   // ENOENT routes-manifest.json, so scope it to production builds only.
   output: process.env.NODE_ENV === "production" ? "standalone" : undefined,
+  // PostHog reverse proxy: analytics traffic is served same-origin via /ingest so the
+  // locked-down CSP (connect-src/script-src 'self') covers it without allowlisting any
+  // third-party domain, and it bypasses ad blockers. The client points api_host at
+  // "/ingest" (see components/PostHogProvider.tsx). Region: US cloud.
+  skipTrailingSlashRedirect: true,
+  async rewrites() {
+    return [
+      {
+        source: "/ingest/static/:path*",
+        destination: "https://us-assets.i.posthog.com/static/:path*",
+      },
+      { source: "/ingest/:path*", destination: "https://us.i.posthog.com/:path*" },
+    ];
+  },
   async headers() {
     return [
       {
