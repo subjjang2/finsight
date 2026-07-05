@@ -8,6 +8,7 @@
     "start": "next start -p $PORT",
     "lint": "eslint .",
     "test": "vitest run",
+    "eval": "tsx eval/harness/run.ts",
     "polar:check": "node scripts/polar-sandbox-check.mjs",
     "prepare": "git config core.hooksPath .githooks || true"
   },
@@ -32,6 +33,7 @@
     "lighthouse": "^12.8.2",
     "postcss": "^8.5.10",
     "tailwindcss": "^3.4.17",
+    "tsx": "^4.23.0",
     "typescript": "^5.6.0",
     "vitest": "^3.2.6"
   },
