@@ -28,6 +28,7 @@
   - route 핸들러(`route.ts`)는 통합 테스트가 없으면 tdd-guard가 Edit를 차단한다. 같은 폴더에 `route.test.ts`를 두거나 핵심 로직을 테스트된 `lib`/`services`로 추출할 것. page/layout/types/config는 면제.
 - 커밋 메시지는 conventional commits 형식을 따를 것 (feat:, fix:, docs:, refactor:)
 - 유료 API(Claude) 호출이 발생하는 작업은 실행 전 사용자에게 확인받는다.
+- CI 게이트는 `.github/workflows/ci.yml`(lint/build/test, 모든 PR + main push). 실패하면 `.github/workflows/oncall-ci-fix.yml`이 사고대응으로 깨어나 실패 잡 로그만 읽고 headless `claude -p`(Haiku)로 근본원인을 고쳐 `oncall/fix-<run_id>` 브랜치→PR을 연다. 규칙: **자동 머지 금지(사람 게이트)**, oncall/봇/fork 실패는 skip(무한루프 차단), 에이전트는 prod/main read-only(수정은 PR로만). oncall 하네스 정본은 `.claude/skills/oncall/`(SKILL·ci-fix·service-map).
 
 ## 명령어
 npm run dev      # 개발 서버

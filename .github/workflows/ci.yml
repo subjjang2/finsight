@@ -1,0 +1,60 @@
+name: CI
+
+# 검증형 게이트: lint / test / build 를 잡별로 분리 실행한다.
+#  - 잡을 나누는 이유: 실패 시 oncall-ci-fix 가 `gh run view --log-failed`로
+#    '깨진 잡'의 로그만 깔끔히 읽을 수 있게 하기 위함(성공 잡은 노이즈).
+#  - 이 CI 자체는 Anthropic 토큰을 쓰지 않는다(GitHub Actions 실행분만).
+#  - 이 워크플로우의 name("CI")은 oncall-ci-fix.yml 의 workflow_run 트리거가
+#    문자열로 참조하므로 바꾸면 그쪽도 함께 고쳐야 한다.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run lint
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run test
+
+  build:
+    runs-on: ubuntu-latest
+    # next build 대비 더미 NEXT_PUBLIC_* placeholder 주입(빌드 타임 env 접근 방어).
+    # 실제 시크릿은 넣지 않는다 — 빌드는 클라이언트 공개 값만 필요하고, 앱 런타임 env는
+    # 함수 내부에서 lazy 접근한다.
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: placeholder-anon-key
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run build
