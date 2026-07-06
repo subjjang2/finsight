@@ -5,7 +5,8 @@ CI 실패의 원인을 짚을 때 "무엇이 무엇을 부르는가"(정적 impo
 
 ## 디렉토리 경계 (CLAUDE.md/AGENTS.md 규칙)
 - `app/` — Next.js App Router 페이지 + `app/api/*/route.ts` 라우트 핸들러(서버).
-- `services/` — 외부 API 래퍼. `services/claude.ts`는 `import "server-only"` (서버 전용).
+- `services/` — 외부 API 래퍼. `services/claude.ts`·`services/github.ts`는 `import "server-only"` (서버 전용).
+  `services/github.ts` = repository_dispatch로 판정 CI를 깨우는 래퍼(prod-alert).
 - `lib/` — 유틸·도메인 로직(csv 파싱, analysis 집계, entitlements 한도, categories,
   billing, supabase 클라이언트).
 - `components/` — 재사용 UI(클라이언트).
@@ -20,6 +21,7 @@ CI 실패의 원인을 짚을 때 "무엇이 무엇을 부르는가"(정적 impo
 | `app/api/advice/route.ts` (Pro) | services/claude, lib/categories, lib/supabase/server |
 | `app/api/polar/checkout/route.ts` | lib/billing/checkout, lib/supabase/server |
 | `app/api/polar/webhook/route.ts` | lib/billing/polar(서명검증), lib/supabase/admin(service-role) |
+| `app/api/posthog/error-alert/webhook/route.ts` | lib/oncall/posthog-webhook(검증/파싱), lib/supabase/admin(멱등 claim RPC), services/github(dispatch) |
 
 ## 근본원인 판단 힌트
 - **타입 에러가 여러 파일에 번짐** → 대개 `types/*` 변경이 진원. 타입 정의를 먼저 확인.
