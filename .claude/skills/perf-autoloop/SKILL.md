@@ -27,7 +27,7 @@ karpathy/autoresearch의 루프(수정 → 고정예산 실험 → 지표 개선
 - **측정 대상 URL**: 기본은 로컬 prod 빌드(`localhost`). autoresearch에 가장 충실하고 재현성 높음.
   배포 URL 측정을 원하면 매 반복 배포가 필요해 루프가 무거워지므로 별도 확인.
 - **대상 라우트**: 기본 `/`. 인증이 필요한 `/dashboard/*` 는 Lighthouse에 세션 쿠키 주입이 필요하니 요청 시에만.
-- **예산/종료조건**: `maxIterations`(기본 5) · `plateau`(기본 2회 연속 정체) · `targetSum`(기본 400).
+- **예산/종료조건**: `maxIterations`(기본 6) · `plateau`(기본 2회 연속 정체) · `targetSum`(기본 400).
   Workflow 서브에이전트가 반복마다 토큰을 소비하므로, 넓게 돌리기 전에 예상 반복 수를 사용자에게 알린다.
 - **커밋 격리**: 루프는 개선분을 커밋으로 보존한다. 현재 브랜치와 섞이지 않게 전용 브랜치
   (`perf/lighthouse-autoloop` 등)를 만들고, **커밋 안 된 무관 untracked 파일이 있으면**
@@ -59,8 +59,8 @@ node scripts/perf/lighthouse-run.mjs --label baseline --routes / --runs 3
 사용자가 Workflow/서브에이전트 사용에 동의했는지 확인한 뒤:
 
 ```
-Workflow({ scriptPath: ".claude/workflows/autoperf.js",
-           args: { routes: "/", maxIterations: 5, plateau: 2, targetSum: 400 } })
+Workflow({ name: "autoperf",
+           args: { routes: "/", maxIterations: 6, plateau: 2, targetSum: 400 } })
 ```
 
 백그라운드로 돈다. 반복마다: experiment 에이전트(수정+측정) → 결정적 keep/revert 게이트 →

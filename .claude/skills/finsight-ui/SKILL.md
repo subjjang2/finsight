@@ -37,12 +37,12 @@ charcoal 다크 + emerald, Pretendard 한글 폰트. 토큰 변수명/값을 그
 `--accent #10b981`, `--canvas #0a0b0d`, `--surface #121417`, `--surface-2/3`,
 `--line`, `--ink #f3f5f6`, `--muted`, `--up #34d399`, `--down #f0716b`.
 
-## 2b. 컴포넌트 카탈로그 (구현 시 생성)
-`components/`에 재사용 primitive(Button, Card, Panel, Stat, Donut 등)를 처음 만들 때,
-`docs/COMPONENTS.md` 카탈로그를 **코드와 동시에** 작성·갱신한다.
-각 컴포넌트의 props·변형(variant)·상태·사용 예를 정의하는 단일 진실 소스로 둔다.
+## 2b. 컴포넌트 카탈로그 (이미 존재 — 따르고 갱신)
+`components/`에는 재사용 primitive가 이미 있고(`components/ui/index.tsx`의 Button·Card·Input·Stat 등,
+`shell/`·`dashboard/`), `docs/COMPONENTS.md`가 그 카탈로그다. **새로 만들지 말고 이 카탈로그를
+단일 진실 소스로 따른다.** 기존 컴포넌트가 있으면 재사용하고, 컴포넌트를 추가·변경하면
+`docs/COMPONENTS.md`를 **같은 커밋에서** 갱신한다(props·변형(variant)·상태·사용 예).
 (원칙·토큰=UI_GUIDE, 흐름=UX_GUIDE, **조립 단위=COMPONENTS.md**.)
-아직 컴포넌트가 코드로 없으면 만들지 않는다 — 코드보다 앞서 쓰면 어긋난다.
 
 ## 3. 구현 예시 (그대로 패턴 차용)
 - `docs/prototype/js/ui.jsx` — 공용 primitive: `Logo`, `Sidebar`, `PageHeader`, `Panel`,

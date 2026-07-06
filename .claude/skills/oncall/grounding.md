@@ -25,6 +25,9 @@ autopilot 답의 **모든 주장은 아래 4소스 중 하나에 붙어야** 한
 ## 3. Supabase DB — **READ-ONLY (SELECT 전용)**
 - 도구: `mcp__supabase__execute_sql` 로 **SELECT 만**. `list_tables`·`get_logs`·`get_advisors` 읽기 OK.
 - 용도: 특정 유저 상태·구독 tier·업로드/분석 레코드 존재 여부 확인(사실 확인용).
+  핵심 테이블: `profiles`(`tier`·`monthly_analysis_count` — 구독/한도 문의의 1차 근거),
+  `uploads`(업로드 이력), `insights`(분석 결과), `transactions`(거래·금융 PII). 스키마 정본은
+  `supabase/migrations/*.sql`.
 - **절대 금지:** `INSERT/UPDATE/DELETE`, `apply_migration`, tier 직접 변경, RLS 우회.
   구독을 직접 풀어주는 쓰기 금지. 변경이 필요하면 → **ESCALATE**(draft에 사유·대상 명시).
 - 금융 PII 테이블(transactions 등): 필요한 컬럼·해당 유저 행만. 전체 스캔·PII 원문 노출 금지.

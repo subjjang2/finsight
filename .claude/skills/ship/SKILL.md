@@ -33,14 +33,17 @@ npm test         # Vitest
 npm run lint     # ESLint
 ```
 
-- TDD 규약: 새 기능이면 테스트가 먼저 있어야 한다(`scripts/hooks/tdd-guard.sh`가 강제).
-  테스트 없는 route 핸들러 변경은 차단되니, 검증 실패가 그 때문이면 사용자에게 알린다.
+- TDD 규약: 새 기능이면 테스트가 먼저 있어야 한다. 단 `scripts/hooks/tdd-guard.sh`는 여기(npm 검증)가
+  아니라 **편집 시점의 PreToolUse 훅**(`.claude/settings.json`)으로 동작해 테스트 없는 route 핸들러
+  Edit/Write를 **미리 차단**한다. 즉 검증 이전 단계에서 막히니, 편집이 거부되면 테스트부터 붙인다.
 
 ## 3. commit
 
 - conventional commits 형식(`feat: / fix: / docs: / refactor: / chore:`).
 - 사용자가 메시지를 주면 그대로, 아니면 변경 내용으로 한 줄 제안 후 진행.
 - 변경 범위가 섞여 있으면 논리 단위로 나눠 커밋할지 제안한다.
+- git `pre-commit` 훅(`.githooks/pre-commit`, `package.json`의 `prepare`가 hooksPath 설정)이
+  staged `.ts/.tsx`에 `eslint` + `vitest related`를 돌린다. 커밋이 훅에서 실패하면 그 이유부터 고친다.
 
 ## 4. push — 항상 확인 후
 

@@ -83,23 +83,26 @@ Walkthrough: 이 변경이 무엇을 하는지 2~3줄
 - major ≥ 1 → **Changes Requested**
 - 그 외 → **Approve**
 
-## CI 모드 (GitHub Actions)
+## CI 모드 (GitHub Actions) — 현재는 경량 lite 리뷰
 
-`GITHUB_TOKEN`/`GITHUB_ACTIONS` 환경이 감지되면(= `.github/workflows/ai-review.yml`에서
-`claude-code-action`으로 실행될 때) 다음이 달라진다:
+CI(`.github/workflows/ai-review.yml`)는 **위 3차원 Workflow를 돌리지 않는다.** `claude-code-action`은
+OIDC 강제로 App 미설치 환경에서 실패해 **미사용**이고, 대신 headless `claude -p`가 **Haiku 단일 패스
+lite 리뷰**를 돈다(서브에이전트·이 Workflow 명시적 금지, `--allowedTools "Bash Read Grep Glob"`).
+이 SKILL의 3차원 fan-out/verify는 **정식 파이프라인이며 CI의 lite 리뷰가 나중에 교체될 대상**이다
+(워크플로가 코멘트 배너에도 "정식 3차원 리뷰가 아님(추후 교체)"이라 명시). CI 실제 동작:
 
-- **비용 가드(0단계) 생략**: 사람이 없는 headless 실행이다. 라벨/멘션 게이팅이 이미
-  트리거 단계에서 비용을 통제하므로, 프롬프트 지시대로 확인 없이 완주한다.
-- **diff 범위**: PR의 `base...head` (예: `git diff origin/<base>...HEAD` 또는 `gh pr diff <n>`).
-- **인라인 코멘트를 실제 PR에 post**: 터미널 리포트 대신, confirmed finding마다 4줄 포맷을
-  PR 인라인 리뷰 코멘트로 단다. PR #2에서 검증한 경로를 재사용:
-  ```
-  gh api -X POST repos/{owner}/{repo}/pulls/{n}/comments \
-    --raw-field body="[심각도] 제목\nTL;DR: …\nWhy: …\n→ Fix: …" \
-    -f commit_id="<head sha>" -f path="<file>" -F line=<line> -f side=RIGHT
-  ```
-  (`claude-code-action`의 `classify_inline_comments`가 이 코멘트들을 하나의 리뷰로 묶어준다.)
-- **판정+집계 요약**은 PR 코멘트(`gh pr comment`)로 남긴다.
+- **트리거·비용 게이팅**: PR `opened`/`ready_for_review`(첫 자동 1회) 또는 `labeled`(`ai-review`)·
+  `@claude` 멘션(write 권한자). `synchronize`(커밋 push)는 자동 재실행 안 함. draft·fork 제외.
+- **인증**: `secrets.GITHUB_TOKEN`을 `GH_TOKEN`으로 주입(`gh` CLI). 모델은 `claude-haiku-4-5`.
+- **출력은 요약 코멘트 1개**: `gh pr comment`로 배너 + 3~6줄 요약 하나만 남긴다. **인라인 per-finding
+  코멘트는 달지 않는다**(`gh api .../comments`·`classify_inline_comments` 미사용). 각 항목 앞에
+  `[critical]/[major]/[minor]/[nit]` 태그.
+- **심각도 집계는 `ai-review-verdict.json`**: `{"critical":N,"major":N,"minor":N,"nit":N}` 한 줄을
+  워크스페이스 루트에 쓴다(마지막 필수 산출물).
+- **자동 처리는 결정적 bash 게이트**(AI 아님): verdict.json을 읽어 critical/major≥1→차단(`ai-blocked`),
+  minor만→approve만(`ai-approved`), nit-only/clean→approve + **결정적 머지 가드(신뢰 작성자·타 체크
+  통과·diff≤10파일/200줄) 모두 통과 시에만** squash merge. **fail-safe: verdict 누락/파싱 실패 시
+  approve·merge 안 함**(프롬프트 인젝션 완화).
 
 ## 확장 (10차원)
 
