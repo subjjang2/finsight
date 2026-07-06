@@ -73,6 +73,10 @@ export async function POST(request: Request) {
     if (alert.spikeCount !== undefined) clientPayload.spike_count = alert.spikeCount;
     if (alert.spikeThreshold !== undefined) clientPayload.spike_threshold = alert.spikeThreshold;
   }
+  // 에러 요약(비 PII, 절단됨)이 있으면 CI triage 가 '무슨 에러'를 실제로 짚도록 함께 넘긴다.
+  if (alert.errorName) clientPayload.error_name = alert.errorName;
+  if (alert.errorMessage) clientPayload.error_message = alert.errorMessage;
+  if (alert.errorFrames) clientPayload.error_frames = alert.errorFrames;
 
   try {
     await dispatchRepositoryEvent(DISPATCH_EVENT_TYPE, clientPayload);

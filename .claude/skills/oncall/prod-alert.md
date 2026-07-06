@@ -17,8 +17,11 @@
 ```
 
 입력은 **사실 포인터**(alert_type, fingerprint=posthog issue id, occurred_at, issue url,
-spike count/threshold)뿐이다. 스택트레이스·person·이벤트 원문은 넘어오지 않는다 —
-근거는 네가 read-only 로 재수집한다.
+spike count/threshold)에 더해, PostHog alert body 가 실어 보내면 **에러 요약**(error_name,
+error_message, error_frames=상위 스택 프레임)이 온다. 에러 요약이 있으면 '무슨 에러'·'의심 원인'의
+**1차 근거**로 쓰되(프레임의 파일:줄을 Grep/Read 로 확인), 없거나 `null` 이면 코드+git log 로만
+판단하고 모르면 정직하게 '모름'으로 둔다. raw 스택 전체·person·이벤트 원문은 넘어오지 않으며,
+이슈 본문에도 통째로 옮기지 않는다.
 
 ## 판정 절차
 
