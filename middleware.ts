@@ -79,10 +79,6 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
-// [oncall E2E] 의도적 타입 에러 — build(tsc)를 실패시켜 oncall-ci-fix 파이프라인 검증. 검증 후 삭제.
-const oncallE2EFault: number = "trigger-oncall";
-void oncallE2EFault;
-
 export const config = {
   matcher: ["/login", "/dashboard/:path*"],
 };
