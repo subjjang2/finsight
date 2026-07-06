@@ -28,7 +28,7 @@
   - route 핸들러(`route.ts`)는 통합 테스트가 없으면 tdd-guard가 Edit를 차단한다. 같은 폴더에 `route.test.ts`를 두거나 핵심 로직을 테스트된 `lib`/`services`로 추출할 것. page/layout/types/config는 면제.
 - 커밋 메시지는 conventional commits 형식을 따를 것 (feat:, fix:, docs:, refactor:)
 - 유료 API(Claude) 호출이 발생하는 작업은 실행 전 사용자에게 확인받는다.
-- CI 게이트는 `.github/workflows/ci.yml`(lint/build/test, 모든 PR + main push). 실패하면 `.github/workflows/oncall-ci-fix.yml`이 사고대응으로 깨어나 실패 잡 로그만 읽고 headless `claude -p`(Haiku)로 근본원인을 고쳐 `oncall/fix-<run_id>` 브랜치→PR을 연다. 규칙: **자동 머지 금지(사람 게이트)**, oncall/봇/fork 실패는 skip(무한루프 차단), 에이전트는 prod/main read-only(수정은 PR로만). oncall 하네스 정본은 `.claude/skills/oncall/`(SKILL·ci-fix·service-map).
+- CI 게이트는 `.github/workflows/ci.yml`(lint/build/test, 모든 PR + main push). 실패하면 `.github/workflows/oncall-ci-fix.yml`이 사고대응으로 깨어나 실패 잡 로그만 읽고 headless `claude -p`(Haiku)로 근본원인을 고쳐 `oncall/fix-<run_id>` 브랜치→PR을 연다. 규칙: **자동 머지 금지(사람 게이트)**, oncall/봇/fork 실패는 skip(무한루프 차단), 에이전트는 prod/main read-only(수정은 PR로만). oncall 하네스 정본은 `.claude/skills/oncall/`(SKILL·ci-fix·service-map). oncall은 두 번째 모드로 **autopilot**(질의응답)도 돈다: 유저/내부 질문에 코드·PostHog·Supabase(**read-only SELECT 전용**)·Railway 로그를 근거로 답을 만든다(지어내기 금지, 근거 없으면 '모름'). 유저向 답은 **draft→사람 승인**(자동 전송 금지), 쓰기/권한 필요 건은 **ESCALATE**. always-on 인프라는 분리, 지금은 로컬 one-shot(`scripts/oncall/autopilot.py`, 과금 호출 없음)으로 시연. 정본은 `autopilot.md`·`grounding.md`. oncall은 세 번째 모드로 **prod-alert**(운영 에러 1차 방어선)도 돈다: PostHog 에러 알림(단건/급증)을 서버리스 웹훅(`app/api/posthog/error-alert/webhook/route.ts`)이 서명검증+event_id 멱등 claim+CI 위임(GitHub `repository_dispatch`)까지만 하고(판정 안 함), 헤드리스 CI(`.github/workflows/oncall-prod-alert.yml`, Haiku)가 노이즈/신호를 판정해 신호면 분석(무슨 에러/언제부터 몇 명/의심 원인/영향 범위/권장 액션)을 담아 GitHub 이슈로 escalate(중복은 fingerprint dedup)하며 prod는 read-only. 정본은 `.claude/skills/oncall/prod-alert.md`.
 
 ## 명령어
 npm run dev      # 개발 서버
@@ -52,3 +52,6 @@ POLAR_ACCESS_TOKEN               # 서버 전용
 POLAR_PRO_PRODUCT_ID             # 서버 전용, Pro 체크아웃 대상 상품
 POLAR_WEBHOOK_SECRET             # 서버 전용
 # POLAR_API_BASE                 # optional, sandbox 테스트 시에만. 기본값 https://api.polar.sh
+POSTHOG_ALERT_WEBHOOK_SECRET     # 서버 전용, PostHog 에러 알림 웹훅 공유 시크릿(서명/토큰 검증)
+GITHUB_DISPATCH_TOKEN            # 서버 전용, GitHub fine-grained PAT(repository_dispatch 생성, Contents read+write)
+GITHUB_DISPATCH_REPO            # 서버 전용, dispatch 대상 레포 "owner/repo"

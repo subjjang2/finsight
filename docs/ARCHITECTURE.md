@@ -82,7 +82,7 @@ components/           # UI 컴포넌트 (.tsx) — analytics/(PostHog) 포함
 types/                # TypeScript 타입 정의
 lib/                  # 순수 유틸 (supabase 클라, csv, entitlements, billing, analytics, posthog, seo)
 services/             # 외부 API 래퍼 (claude)
-supabase/migrations/  # SQL 마이그레이션 (0001_init ~ 0005_advisor_remediation)
+supabase/migrations/  # SQL 마이그레이션 (0001_init ~ 0006_alert_events)
 ```
 
 ## 패턴
@@ -97,6 +97,9 @@ supabase/migrations/  # SQL 마이그레이션 (0001_init ~ 0005_advisor_remedia
       → Claude 분류(고정 카테고리 enum) → 집계
       → user-scoped Supabase(RLS) 저장 → 응답 → Server Component 리렌더
 Polar 웹훅 → app/api/polar/webhook → service-role Supabase → profiles.tier 갱신
+PostHog 에러 알림 → app/api/posthog/error-alert/webhook(서명검증+event_id 멱등 claim)
+      → GitHub repository_dispatch(CI 위임) → headless CI(oncall-prod-alert.yml)가 노이즈/신호 판정
+      → 신호면 분석 담아 GitHub 이슈로 escalate(fingerprint dedup, prod read-only)
 ```
 
 ## 데이터 모델 (개략)
@@ -105,6 +108,7 @@ Polar 웹훅 → app/api/polar/webhook → service-role Supabase → profiles.ti
 - `transactions` — 거래 건별(date, merchant, amount, category). RLS로 소유자만 접근.
 - `insights` — 업로드별 집계 결과(카테고리별 합계/비율). Pro 조언은 `advice`/`advice_generated_at`에 캐시(0004).
 - `webhook_events` — Polar 웹훅 멱등 처리 기록(0003).
+- `alert_events` — PostHog 에러 알림 인입 멱등 + CI 위임 추적(0006, service-role 전용).
 - 모든 PII 테이블은 RLS 강제 + at-rest 암호화 + 사용자 "전체 삭제" 지원.
 
 ## 상태 관리
