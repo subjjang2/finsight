@@ -60,6 +60,9 @@ jobs:
           ISSUE_ID: ${{ github.event.client_payload.posthog_issue_id }}
           SPIKE_COUNT: ${{ github.event.client_payload.spike_count }}
           SPIKE_THRESHOLD: ${{ github.event.client_payload.spike_threshold }}
+          ERROR_NAME: ${{ github.event.client_payload.error_name }}
+          ERROR_MESSAGE: ${{ github.event.client_payload.error_message }}
+          ERROR_FRAMES: ${{ toJson(github.event.client_payload.error_frames) }}
         run: |
           claude -p "너는 finsight 의 oncall PROD ALERT 1차 방어선 에이전트다. PostHog 에러 알림이 들어왔다. 너는 '판정만' 한다 — 코드 수정·머지·prod(Railway/Supabase) 접근은 절대 금지(read-only). 브랜치·PR 도 만들지 않는다.
 
@@ -74,7 +77,13 @@ jobs:
           - posthog_issue_id=$ISSUE_ID / posthog_issue_url=$ISSUE_URL
           - spike_count=$SPIKE_COUNT / spike_threshold=$SPIKE_THRESHOLD
 
-          [근거 소스] (1) 코드 정독(Grep/Glob/Read 로 에러가 날 만한 경로·핵심 플로우 확인) (2) 최근 커밋이 의심 경로와 겹치는지(Bash 로 read-only git log/git show 만 — 예: git log --since='7 days ago' --oneline, git show <sha> --stat) (3) 위 알림 사실값. raw 스택트레이스·PII·이벤트 원문은 다루지도 말고 이슈에 옮기지도 마라.
+          [에러 상세(있으면 1차 근거)]
+          - error_name=$ERROR_NAME
+          - error_message=$ERROR_MESSAGE
+          - error_frames(JSON 배열, 상위 스택 프레임)=$ERROR_FRAMES
+          이 값들이 있으면 '무슨 에러'와 '의심 원인'의 1차 근거로 삼아라(프레임의 파일:줄로 소스를 Grep/Read 해 확인). 없거나 'null' 이면 코드+git log 로만 판단하고, 모르면 정직하게 '모름'으로 두고 사람이 PostHog 를 확인하도록 안내하라(지어내기 금지).
+
+          [근거 소스] (1) 위 에러 상세(있으면) (2) 코드 정독(Grep/Glob/Read 로 에러가 날 만한 경로·핵심 플로우 확인) (3) 최근 커밋이 의심 경로와 겹치는지(Bash 로 read-only git log/git show 만 — 예: git log --since='7 days ago' --oneline, git show <sha> --stat). PII·이벤트 원문은 이슈에 통째로 옮기지 말고 요약만 담아라.
 
           [판정 기준] 노이즈 = 알려진 일시적·단발·봇/크롤러성. 신호 = 새 에러·여러 유저 영향·급증(spike)·핵심 경로(업로드/분석/결제/인증). 경계면 신호로 기울이되 confidence 를 'low' 로.
 

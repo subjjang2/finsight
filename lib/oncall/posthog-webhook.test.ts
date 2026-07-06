@@ -131,6 +131,33 @@ describe("parseAlertEvent", () => {
     ).toBe("single");
   });
 
+  it("carries the error summary (name/message/top frames) when present, truncating long values", () => {
+    const parsed = parseAlertEvent({
+      alert_type: "single",
+      issue_id: "iss_err",
+      occurred_at: "2026-07-06T00:00:00Z",
+      error_name: "TypeError",
+      error_message: "x".repeat(600),
+      error_frames: ["findHeaderRow (lib/csv/statement.ts:42)", "parseExcel (lib/csv/statement.ts:18)", 123, null],
+    });
+
+    expect(parsed?.errorName).toBe("TypeError");
+    expect(parsed?.errorMessage?.endsWith("…")).toBe(true);
+    expect(parsed?.errorMessage?.length).toBe(501); // 500 chars + ellipsis
+    // non-string frames filtered out, order preserved.
+    expect(parsed?.errorFrames).toEqual([
+      "findHeaderRow (lib/csv/statement.ts:42)",
+      "parseExcel (lib/csv/statement.ts:18)",
+    ]);
+  });
+
+  it("omits error summary fields when the alert has none", () => {
+    const parsed = parseAlertEvent({ alert_type: "single", issue_id: "iss_x", occurred_at: "2026-07-06T00:00:00Z" });
+    expect(parsed?.errorName).toBeUndefined();
+    expect(parsed?.errorMessage).toBeUndefined();
+    expect(parsed?.errorFrames).toBeUndefined();
+  });
+
   it("returns null without an issue id or occurred_at", () => {
     expect(parseAlertEvent({ alert_type: "single", occurred_at: "2026-07-06T00:00:00Z" })).toBeNull();
     expect(parseAlertEvent({ alert_type: "single", issue_id: "i" })).toBeNull();

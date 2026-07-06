@@ -22,7 +22,16 @@ export type ParsedAlert = {
   posthogIssueUrl: string | null;
   spikeCount?: number;
   spikeThreshold?: number;
+  // 에러 요약(비 PII): PostHog alert body 가 실어 보내면 CI triage 가 '무슨 에러'의 1차 근거로 쓴다.
+  // 없어도 파이프라인은 돌지만, 있으면 판정이 코드 위치까지 짚을 수 있다.
+  errorName?: string; // 예외 타입 ($exception_types)
+  errorMessage?: string; // 예외 메시지 ($exception_values), 길이 절단
+  errorFrames?: string[]; // 상위 스택 프레임 "func (file:line)", 앞부분만
 };
+
+const MAX_MESSAGE_LEN = 500;
+const MAX_FRAME_LEN = 200;
+const MAX_FRAMES = 5;
 
 export function verifyPosthogAlert({
   rawBody,
@@ -115,6 +124,15 @@ export function parseAlertEvent(payload: unknown): ParsedAlert | null {
     if (threshold !== undefined) parsed.spikeThreshold = threshold;
   }
 
+  const errorName = stringValue(record.error_name);
+  const errorMessage = stringValue(record.error_message);
+  const errorFrames = stringArray(record.error_frames);
+  if (errorName) parsed.errorName = truncate(errorName, MAX_FRAME_LEN);
+  if (errorMessage) parsed.errorMessage = truncate(errorMessage, MAX_MESSAGE_LEN);
+  if (errorFrames.length > 0) {
+    parsed.errorFrames = errorFrames.slice(0, MAX_FRAMES).map((frame) => truncate(frame, MAX_FRAME_LEN));
+  }
+
   return parsed;
 }
 
@@ -138,4 +156,15 @@ function stringValue(value: unknown): string | null {
 
 function numberValue(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function stringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.map((item) => stringValue(item)).filter((item): item is string => item !== null);
+}
+
+function truncate(value: string, max: number): string {
+  return value.length > max ? `${value.slice(0, max)}…` : value;
 }

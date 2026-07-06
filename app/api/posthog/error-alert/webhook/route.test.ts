@@ -160,6 +160,29 @@ describe("POST /api/posthog/error-alert/webhook", () => {
     expect(dispatchMock).not.toHaveBeenCalled();
   });
 
+  it("forwards the error summary (name/message/frames) in the CI payload when present", async () => {
+    rpcMock
+      .mockResolvedValueOnce({ data: "claimed", error: null })
+      .mockResolvedValueOnce({ data: null, error: null });
+    dispatchMock.mockResolvedValue(undefined);
+
+    await POST(
+      buildRequest({
+        ...SINGLE_ALERT,
+        error_name: "OncallE2EUploadParseError",
+        error_message: "Cannot read properties of undefined (reading 'map')",
+        error_frames: ["findHeaderRow (lib/csv/statement.ts:42)"],
+      }),
+    );
+
+    const [, clientPayload] = dispatchMock.mock.calls[0];
+    expect(clientPayload).toMatchObject({
+      error_name: "OncallE2EUploadParseError",
+      error_message: "Cannot read properties of undefined (reading 'map')",
+      error_frames: ["findHeaderRow (lib/csv/statement.ts:42)"],
+    });
+  });
+
   it("forwards spike count/threshold in the CI payload", async () => {
     rpcMock
       .mockResolvedValueOnce({ data: "claimed", error: null })
